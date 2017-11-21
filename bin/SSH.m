@@ -15,16 +15,17 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 100;
-open = true;
-hopping_A = 0.5;
-hopping_B = 3*exp(0i);
-hopping_A2 = 0.4*exp(0i);
-hopping_B2 = 2.5*exp(-0i);
-times = 0:0.5:100;
-site1 = 17;
-site2 = 64;
-current_site = 50;
+sites = 180;
+open = false;
+hopping_A = 0.4;
+hopping_B = 1*exp(0.2i);
+hopping_A2 = 0.4*exp(0.5i);
+hopping_B2 = 2.5*exp(-0.2i);
+times = 0:0.5:40;
+site1 = 3;
+site2 = 8;
+current_site = 33;
+cell_size = 2;
 %*********************************************
 
 if mod(site1,2) ~= 1 || mod(site2,2) ~= 0
@@ -47,6 +48,8 @@ ins2 = TopologicalInsulator(ham2);
 
 init_mat = ins.half_filled_correlation_matrix(0.01);
 figure_handles{end+1} = TopologicalInsulator.correlation_length_plot(init_mat,open);
+
+chern_densities = TopologicalInsulator.local_chern_densities(init_mat,cell_size);
 
 occupations = zeros(1,numel(times));
 spectra = zeros(site2 - site1 + 1,numel(times));
@@ -117,3 +120,7 @@ plot(times,integrated_current_induced);
 figure_handles{end+1} = figure('Name','Qubit preservation');
 
 plot(times,abs(qubits)/abs(qubits(1)));
+
+figure_handles{end+1} = figure('Name','Real space chern density');
+
+plot(1:(sites/cell_size),chern_densities);

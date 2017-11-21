@@ -15,52 +15,74 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 100;
-open = true;
-mu_A = 0.2;
-t_A = 1*exp(0i);
-delta_A = 2i;
-mu_B = 2.5;
-t_B = 0.5i;
-delta_B = 1;
-times = 0:0.05:4;
-site1 = 27;
-site2 = 128;
-current_site = 50;
+sites = 52;
+open = false;
+a1 = 1*exp(0.8i);
+b1 = 0.5*exp(-0.5i);
+c1 = 0.2*exp(-0.2i);
+s1 = -5*exp(0i);
+breaking1 = 0;
+
+a2 = 2.4*exp(0.2i);
+b2 = 2.8*exp(-0.5i);
+c2 = -0.2*exp(-0.1i);
+s2 = -2.9*exp(0.9i);
+breaking2 = 0;
+times = 0:0.01:10;
+site1 = 5;
+site2 = 8;
+current_site = 25;
+cell_size = 4;
+hopping_range = 3;
 %*********************************************
 
-if mod(site1,2) ~= 1 || mod(site2,2) ~= 0
+if mod(site1,cell_size) ~= 1 || mod(site2,cell_size) ~= 0
     error('Entanglement cut must not be within a unit cell');
 end
+if mod(sites,cell_size) ~=0 && ~open
+    error('Number of sites must be zero modulo cell size for closed system');
+end
+cells = sites/cell_size;
 
-ham = TopologicalInsulator.kitaev_chain_hamiltonian(mu_A,t_A,delta_A,sites,open);
-
-
+ham = FlatBandHamiltonian.hamiltonian({a1,b1,c1,s1},breaking1,cells,open);
 
 ins = TopologicalInsulator(ham);
 figure_handles{end+1} = ins.plot_orbitals_in_energy_range(-0.01,0.01);
 
+
 zero_wavefunction = ins.zero_mode_wavefunction(-0.01,0.01);
 wf_t = ins.time_evolve_creation_operator(zero_wavefunction.',times(end));
-%zero_wavefunction = [1,zeros(1,2*sites-1)];
+zero_wavefunction = [1,zeros(1,sites-1)];
 
-ham2 = TopologicalInsulator.kitaev_chain_hamiltonian(mu_B,t_B,delta_B,sites,open);
+params_out = FlatBandHamiltonian.commensurate_parameters(0.2*pi,3*pi,a2,b2,c2,s2);
+
+ham2 = FlatBandHamiltonian.hamiltonian(params_out,breaking2,cells,open);
 ins2 = TopologicalInsulator(ham2);
 
-ham_conj = TopologicalInsulator.nambu_operator(1,2*sites) * conj(ham2) * TopologicalInsulator.nambu_operator(1,2*sites);
-sum(sum(abs(ham2 + ham_conj)))
+evals = eig(ham2)
+[t1,t2] = FlatBandHamiltonian.energies_from_parameters(params_out)
 
-init_mat = ins.half_filled_correlation_matrix(-0.01);
+t = TopologicalInsulator.validate_current_operator(ham2,site1,site2,hopping_range,open)
+
+init_mat = ins.half_filled_correlation_matrix(0.01);
 figure_handles{end+1} = TopologicalInsulator.correlation_length_plot(init_mat,open);
 
 occupations = zeros(1,numel(times));
 spectra = zeros(site2 - site1 + 1,numel(times));
 entropies = zeros(1,numel(times));
+
 currents = zeros(1,numel(times));
+% bloch_currents = zeros(1,numel(times));
+qubits = zeros(1,numel(times));
+wannier_centres = zeros(sites/2,numel(times));
 
 H2 = @(x) -x*exp(-x);
 
-curr_op = TopologicalInsulator.current_operator_from_hamiltonian(ham2,current_site,open);
+curr_op = TopologicalInsulator.current_operator_from_hamiltonian_test(ham2,current_site,hopping_range,open);
+
+chern_densities = TopologicalInsulator.local_chern_densities(init_mat,cell_size);
+
+prev_wannier = NaN;
 
 for t_index = 1:numel(times)
     t = times(t_index);
@@ -73,15 +95,23 @@ for t_index = 1:numel(times)
         corrmat_t, site1, site2);
     
     currents(1,t_index) = sum(sum(curr_op .* corrmat_t));
+%     bloch_currents(1,t_index) = TopologicalInsulator.bloch_current_vals(ham2,corrmat_t,cell_size,2);
+    qubits(1,t_index) = ins2.noneq_qubit_function(init_mat,1,t);
+    wannier_centres(:,t_index) = TopologicalInsulator.wannier_centres(corrmat_t,prev_wannier);
+    prev_wannier = wannier_centres(:,t_index);
 end
 
-integrated_current_induced = cumtrapz(currents,ones(1,numel(times)).*(times(2) - times(1)));
+integrated_current_induced = cumtrapz(times,currents);
+% integrated_bloch_current_induced = cumtrapz(times,bloch_currents);
+integrated_current_induced(end)
+% integrated_bloch_current_induced(end)
+
 
 figure_handles{end+1} = TopologicalInsulator.correlation_length_plot(corrmat_t,open);
 
 topological_spectrum_indices = [(site2 - site1 + 1)/2, (site2 - site1 + 3)/2];
 
-%% Testing symmetry
+%% Test symmetries
 
 [init_trs,init_phs,init_chi] = TopologicalInsulator.test_symmetries(init_mat);
 [t_trs,t_phs,t_chi] = TopologicalInsulator.test_symmetries(corrmat_t);
@@ -90,17 +120,6 @@ crit = 1.e-6;
 
 fprintf('Initially: PHS = %d ; TRS = %d ; CHI = %d \n',abs(init_phs) < crit,abs(init_trs) < crit,abs(init_chi) < crit);
 fprintf('Time t: PHS = %d ; TRS = %d ; CHI = %d \n',abs(t_phs) < crit,abs(t_trs) < crit,abs(t_chi) < crit);
-
-%% Time evolved ham
-
-figure_handles{end+1} = figure('Name','Hamiltonian zero time');
-imagesc(abs(ham))
-figure_handles{end+1} = figure('Name','Hamiltonian inter time');
-ham_int = ins2.time_evolve_hamiltonian(ham,times(uint32(floor(numel(times)/2))));
-imagesc(abs(ham_int))
-figure_handles{end+1} = figure('Name','Hamiltonian full time');
-ham_t = ins2.time_evolve_hamiltonian(ham,times(end));
-imagesc(abs(ham_t))
 
 %% Plotting
 
@@ -118,11 +137,33 @@ plot(times,entropies);
 
 figure_handles{end+1} = figure('Name','Time evolved zero wavefunction');
 
-plot(1:(2*sites),abs(wf_t));
+plot(1:(sites),abs(wf_t));
 
 figure_handles{end+1} = figure('Name','Current induced');
 
 subplot(2,1,1);
+hold on;
 plot(times,currents);
+% plot(times,bloch_currents);
+hold off;
 subplot(2,1,2)
+hold on;
 plot(times,integrated_current_induced);
+% plot(times,integrated_bloch_current_induced);
+hold off;
+
+figure_handles{end+1} = figure('Name','Qubit preservation');
+
+plot(times,abs(qubits)/abs(qubits(1)));
+
+figure_handles{end+1} = figure('Name','Real space chern density');
+
+plot(1:(sites/cell_size),chern_densities);
+
+figure_handles{end+1} = figure('Name','Correlation matrix zero time');
+pos_values = exp(((1:(sites)) + 0.5)*2i*pi/sites);
+imagesc(abs(init_mat*diag(pos_values)*init_mat))
+
+figure_handles{end+1} = figure('Name','Wannier centre flow');
+plot(times,wannier_centres);
+ylim([-2.5,2.5]);
