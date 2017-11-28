@@ -15,16 +15,16 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 180;
+sites = 50;
 open = false;
 hopping_A = 0.4;
-hopping_B = 1*exp(0.2i);
+hopping_B = 1*exp(0i);
 hopping_A2 = 0.4*exp(0.5i);
 hopping_B2 = 2.5*exp(-0.2i);
 times = 0:0.5:40;
 site1 = 3;
 site2 = 8;
-current_site = 33;
+current_site = 5;
 cell_size = 2;
 %*********************************************
 
@@ -57,6 +57,8 @@ entropies = zeros(1,numel(times));
 
 currents = zeros(1,numel(times));
 qubits = zeros(1,numel(times));
+wannier_centres = zeros(sites/2,numel(times));
+prev_wannier = NaN;
 
 H2 = @(x) -x*exp(-x);
 
@@ -73,6 +75,8 @@ for t_index = 1:numel(times)
         corrmat_t, site1, site2);
     
     currents(1,t_index) = sum(sum(curr_op .* corrmat_t));
+    wannier_centres(:,t_index) = TopologicalInsulator.wannier_centres(corrmat_t,prev_wannier,cell_size);
+
     qubits(1,t_index) = ins2.noneq_qubit_function(init_mat,1,t);
 end
 
@@ -124,3 +128,7 @@ plot(times,abs(qubits)/abs(qubits(1)));
 figure_handles{end+1} = figure('Name','Real space chern density');
 
 plot(1:(sites/cell_size),chern_densities);
+
+figure_handles{end+1} = figure('Name','Wannier centre flow');
+plot(times,wannier_centres);
+ylim([-5,5]);

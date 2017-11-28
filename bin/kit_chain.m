@@ -72,7 +72,7 @@ for t_index = 1:numel(times)
     entropies(1,t_index) = TopologicalInsulator.entanglement_entropy_from_correlation_matrix(...
         corrmat_t, site1, site2);
     
-    currents(1,t_index) = sum(sum(curr_op .* corrmat_t));
+    currents(1,t_index) = trace(curr_op * corrmat_t);
 end
 
 integrated_current_induced = cumtrapz(currents,ones(1,numel(times)).*(times(2) - times(1)));

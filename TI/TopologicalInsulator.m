@@ -85,6 +85,8 @@ classdef TopologicalInsulator
             end
         end
         
+        
+        
         function ham_fic = time_evolve_hamiltonian(obj,ham0,time)
             phases = exp(-1i*time*obj.spectrum);
             t_evol = obj.orbitals' * diag(phases) * obj.orbitals;
@@ -172,6 +174,8 @@ classdef TopologicalInsulator
             ham = ham + ham';
         end
         
+        
+        
         function dens = local_chern_densities(corrmat,cell_size)
             sites = size(corrmat,1);
             if mod(sites,cell_size) ~= 0
@@ -182,9 +186,18 @@ classdef TopologicalInsulator
             dens = zeros(1,cells);
             pos_values = exp(2i*pi*kron(0:(cells-1),ones(1,cell_size))/cells);
             %pos_values = exp(((0:(sites-1)))*2i*pi/sites);
-            prodmat = logm((corrmat*diag(pos_values)*corrmat)+ eye(size(corrmat)) - corrmat);
+            
+            pos_values_red = exp(((1:(cells)))*2i*pi/cells);
+            epsilon = 1.e-6;
+            pmat = corrmat*diag(pos_values)*corrmat;
+            alpha = pi/4;
+            prodmat = corrmat*logm((corrmat*diag(pos_values)*corrmat) - (eye(size(corrmat)) - corrmat)*diag(pos_values*exp(1i*alpha))*(eye(size(corrmat)) - corrmat))*corrmat;
             imag(diag(prodmat))*cells/(2*pi)
             sum(imag(diag(prodmat))/(2*pi))
+            corrmat_red = zeros(cells);
+            for j = 1:cell_size
+                corrmat_red = corrmat_red + pmat((0:(cells-1))*cell_size + j,(0:(cells-1))*cell_size + j);
+            end
             pd = diag(prodmat);
             for j = 1:(cells)
                 cell_pos_values = (j-1)*cell_size + (1:(cell_size));
@@ -265,6 +278,25 @@ classdef TopologicalInsulator
             C = kron(eye(sites/2),tau);
         end
         
+        function eig_ks = k_current_operator(currop,k_vals,cell_size)
+            sites = size(currop,1);
+            cells = sites/cell_size;
+            eig_ks = zeros(cell_size,numel(k_vals));
+            for j = 1:numel(k_vals)
+                currk = zeros(cell_size);
+                for a = 1:cell_size
+                    psia = zeros(sites,1);
+                    psia(a:cell_size:sites) = exp(1i*k_vals(j)*(1:cells));
+                    for b = 1:cell_size
+                        psib = zeros(sites,1);
+                        psib(b:cell_size:sites) = exp(1i*k_vals(j)*(1:cells));
+                        currk(a,b) = psia' * currop * psib;
+                    end
+                end
+                eig_ks(:,j) = eig(currk);
+            end
+        end
+        
         function [trs,phs,chi] = test_symmetries(corrmat)
             sites = size(corrmat,1);
             mat_phs = TopologicalInsulator.nambu_operator(1,sites) * conj(corrmat) * TopologicalInsulator.nambu_operator(1,sites);
@@ -277,12 +309,14 @@ classdef TopologicalInsulator
             
         end
         
-        function xs_sorted = wannier_centres(corrmat,prev_centres)
+        function xs_sorted = wannier_centres(corrmat,prev_centres,cell_size)
             sites = size(corrmat,1);
-            pos_values = exp(((1:(sites)))*2i*pi/sites);
+            cells = sites/cell_size;
+            pos_values = exp(2i*pi*kron(1:(cells),ones(1,cell_size))/cells);
+            %pos_values = exp(((0:(sites-1)))*2i*pi/sites);
             proj_pos = corrmat*diag(pos_values)*corrmat;
             centres = eig(proj_pos);
-            xs = angle(centres(abs(centres) > 1.e-6))*sites/(2*pi);
+            xs = angle(centres(abs(centres) > 1.e-6))*cells/(2*pi);
             
             if any(isnan(prev_centres))
                 xs_sorted = sort(xs);

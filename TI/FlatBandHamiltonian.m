@@ -12,7 +12,7 @@ classdef FlatBandHamiltonian
     
     methods(Static)
         %Artificially creates a flat-band Hamiltonian
-        function ham = hamiltonian(params_in,breaking,cells,open)
+        function ham = hamiltonian(params_in,breaking,chiral_breaking,cells,open)
             if numel(params_in) == 4
                 [a,b,c,s] = params_in{:};
                 [t,r,u] = FlatBandHamiltonian.dependent_parameters(a,b,c,s,breaking);
@@ -25,6 +25,7 @@ classdef FlatBandHamiltonian
             
             hop1 = TopologicalInsulator.off_diagonal_matrix(1,[t,s,u,b'],cells,open);
             hop3 = TopologicalInsulator.off_diagonal_matrix(3,[r,a',c',0],cells,open);
+            hop2 = TopologicalInsulator.off_diagonal_matrix(2,ones(1,4)*chiral_breaking,cells,open);
             
             ham = hop1 + hop3 + hop1' + hop3';
             

@@ -15,19 +15,21 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 52;
-open = false;
+sites = 100;
+open =  false;
 a1 = 1*exp(0.8i);
 b1 = 0.5*exp(-0.5i);
 c1 = 0.2*exp(-0.2i);
 s1 = -5*exp(0i);
-breaking1 = 0;
+breaking1 = 5;
+chiral_breaking1 = 0;
 
-a2 = 2.4*exp(0.2i);
+a2 = 0.4*exp(0.2i);
 b2 = 2.8*exp(-0.5i);
-c2 = -0.2*exp(-0.1i);
+c2 = -3.2*exp(-0.1i);
 s2 = -2.9*exp(0.9i);
 breaking2 = 0;
+chiral_breaking2 = 0;
 times = 0:0.01:10;
 site1 = 5;
 site2 = 8;
@@ -44,7 +46,7 @@ if mod(sites,cell_size) ~=0 && ~open
 end
 cells = sites/cell_size;
 
-ham = FlatBandHamiltonian.hamiltonian({a1,b1,c1,s1},breaking1,cells,open);
+ham = FlatBandHamiltonian.hamiltonian({a1,b1,c1,s1},breaking1,chiral_breaking1,cells,open);
 
 ins = TopologicalInsulator(ham);
 figure_handles{end+1} = ins.plot_orbitals_in_energy_range(-0.01,0.01);
@@ -54,9 +56,9 @@ zero_wavefunction = ins.zero_mode_wavefunction(-0.01,0.01);
 wf_t = ins.time_evolve_creation_operator(zero_wavefunction.',times(end));
 zero_wavefunction = [1,zeros(1,sites-1)];
 
-params_out = FlatBandHamiltonian.commensurate_parameters(0.2*pi,3*pi,a2,b2,c2,s2);
+params_out = FlatBandHamiltonian.commensurate_parameters((3/5)*(2*pi),(7/5)*(2*pi),a2,b2,c2,s2);
 
-ham2 = FlatBandHamiltonian.hamiltonian(params_out,breaking2,cells,open);
+ham2 = FlatBandHamiltonian.hamiltonian(params_out,breaking2,chiral_breaking2,cells,open);
 ins2 = TopologicalInsulator(ham2);
 
 evals = eig(ham2)
@@ -80,6 +82,9 @@ H2 = @(x) -x*exp(-x);
 
 curr_op = TopologicalInsulator.current_operator_from_hamiltonian_test(ham2,current_site,hopping_range,open);
 
+kvals = (2*pi)*(0:(cells-1))/cells;
+eig_curr_ks = TopologicalInsulator.k_current_operator(curr_op,kvals,cell_size);
+
 chern_densities = TopologicalInsulator.local_chern_densities(init_mat,cell_size);
 
 prev_wannier = NaN;
@@ -94,10 +99,11 @@ for t_index = 1:numel(times)
     entropies(1,t_index) = TopologicalInsulator.entanglement_entropy_from_correlation_matrix(...
         corrmat_t, site1, site2);
     
-    currents(1,t_index) = sum(sum(curr_op .* corrmat_t));
+    %currents(1,t_index) = sum(sum(curr_op .* corrmat_t));
+    currents(1,t_index) = trace(curr_op * corrmat_t);
 %     bloch_currents(1,t_index) = TopologicalInsulator.bloch_current_vals(ham2,corrmat_t,cell_size,2);
     qubits(1,t_index) = ins2.noneq_qubit_function(init_mat,1,t);
-    wannier_centres(:,t_index) = TopologicalInsulator.wannier_centres(corrmat_t,prev_wannier);
+    wannier_centres(:,t_index) = TopologicalInsulator.wannier_centres(corrmat_t,prev_wannier,cell_size);
     prev_wannier = wannier_centres(:,t_index);
 end
 
@@ -166,4 +172,8 @@ imagesc(abs(init_mat*diag(pos_values)*init_mat))
 
 figure_handles{end+1} = figure('Name','Wannier centre flow');
 plot(times,wannier_centres);
-ylim([-2.5,2.5]);
+ylim([-5,5]);
+
+figure_handles{end+1} = figure('Name','Current operator in k space');
+
+plot(kvals,eig_curr_ks);
