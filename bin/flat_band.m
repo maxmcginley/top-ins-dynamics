@@ -21,7 +21,7 @@ a1 = 1*exp(0.8i);
 b1 = 0.5*exp(-0.5i);
 c1 = 0.2*exp(-0.2i);
 s1 = -5*exp(0i);
-breaking1 = 5;
+breaking1 = 0;
 chiral_breaking1 = 0;
 
 a2 = 0.4*exp(0.2i);
@@ -46,7 +46,7 @@ if mod(sites,cell_size) ~=0 && ~open
 end
 cells = sites/cell_size;
 
-ham = FlatBandHamiltonian.hamiltonian({a1,b1,c1,s1},breaking1,chiral_breaking1,cells,open);
+ham = FlatBandHamiltonian.four_cell_hamiltonian({a1,b1,c1,s1},breaking1,chiral_breaking1,cells,open);
 
 ins = TopologicalInsulator(ham);
 figure_handles{end+1} = ins.plot_orbitals_in_energy_range(-0.01,0.01);
@@ -56,9 +56,9 @@ zero_wavefunction = ins.zero_mode_wavefunction(-0.01,0.01);
 wf_t = ins.time_evolve_creation_operator(zero_wavefunction.',times(end));
 zero_wavefunction = [1,zeros(1,sites-1)];
 
-params_out = FlatBandHamiltonian.commensurate_parameters((3/5)*(2*pi),(7/5)*(2*pi),a2,b2,c2,s2);
+params_out = FlatBandHamiltonian.commensurate_parameters((1/7)*(2*pi),(1/3)*(2*pi),a2,b2,c2,s2);
 
-ham2 = FlatBandHamiltonian.hamiltonian(params_out,breaking2,chiral_breaking2,cells,open);
+ham2 = FlatBandHamiltonian.four_cell_hamiltonian(params_out,breaking2,chiral_breaking2,cells,open);
 ins2 = TopologicalInsulator(ham2);
 
 evals = eig(ham2)
@@ -66,7 +66,7 @@ evals = eig(ham2)
 
 t = TopologicalInsulator.validate_current_operator(ham2,site1,site2,hopping_range,open)
 
-init_mat = ins.half_filled_correlation_matrix(0.01);
+init_mat = ins.half_filled_correlation_matrix(-0.0005);
 figure_handles{end+1} = TopologicalInsulator.correlation_length_plot(init_mat,open);
 
 occupations = zeros(1,numel(times));
@@ -111,6 +111,8 @@ integrated_current_induced = cumtrapz(times,currents);
 % integrated_bloch_current_induced = cumtrapz(times,bloch_currents);
 integrated_current_induced(end)
 % integrated_bloch_current_induced(end)
+
+[berry_curvatures,kvals] = TopologicalInsulator.berry_curvatures_test(ham,ham2,cell_size,2,1,times);
 
 
 figure_handles{end+1} = TopologicalInsulator.correlation_length_plot(corrmat_t,open);
@@ -177,3 +179,8 @@ ylim([-5,5]);
 figure_handles{end+1} = figure('Name','Current operator in k space');
 
 plot(kvals,eig_curr_ks);
+
+figure_handles{end+1} = figure('Name','Berry Curvatures');
+surf(kvals/(2*pi),times,sum(berry_curvatures,3));
+view(2);
+shading interp;

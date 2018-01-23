@@ -36,6 +36,10 @@ classdef TopologicalInsulator
                 sprintf('No orbitals within range [%f , %f]',lowerbound,upperbound);
                 return;
             end
+            fig_handle = obj.plot_orbitals_by_index(orb_choices);
+        end
+        
+        function fig_handle = plot_orbitals_by_index(obj,orb_choices)
             fig_handle = figure('Name','Orbital wavefunction');
             plot(1:obj.sites, abs(obj.orbitals(orb_choices,:).'));
             xlabel('Site index');
@@ -110,6 +114,10 @@ classdef TopologicalInsulator
         end
         
         
+        
+        
+        
+        
     end
     
     methods(Static)
@@ -127,6 +135,111 @@ classdef TopologicalInsulator
                 end
                 ham = diag(repmat([hopping1, hopping2],1,(sites-1)/2), 1);
                 ham = ham + ham';
+            end
+        end
+        
+        function ham = hopping_hamiltonian(hops,potentials,sites,open)
+            if numel(hops) == 1
+                hops = ones(1,sites).*hops;
+            end
+            if numel(potentials) == 1
+                potentials = ones(1,sites).*potentials;
+            end
+            hamhop = TopologicalInsulator.off_diagonal_matrix(1,hops(1:sites),1,open);
+            hampot = diag(potentials(1:sites));
+            ham = hamhop + hamhop' + hampot;
+        end
+        
+        function hk = bloch_hamiltonian(ham,k,cell_size,max_cell_hopping)
+            hk = zeros(cell_size);
+            for j = 0:max_cell_hopping
+                hk = hk + exp(1i*k*j)*ham(j*cell_size + (1:cell_size),1:cell_size);
+                if j ~= 0
+                    hk = hk + exp(-1i*k*j)*ham(1:cell_size,j*cell_size + (1:cell_size));
+                end
+            end
+        end
+        
+        function [bs,kvals] = berry_curvatures_test(ham_init,ham_final,cell_size,filled_bands,max_cell_hopping,times)
+            sites = size(ham_init,1);
+            cells = sites/cell_size;
+            k_interval = 2*pi/cells;
+            kvals = (0:(cells-1))*k_interval;
+            hks_init = cellfun(@(x) TopologicalInsulator.bloch_hamiltonian(...
+                ham_init,x,cell_size,max_cell_hopping),num2cell(kvals),...
+                'UniformOutput',false);
+            hks_final = cellfun(@(x) TopologicalInsulator.bloch_hamiltonian(...
+                ham_final,x,cell_size,max_cell_hopping),num2cell(kvals),...
+                'UniformOutput',false);
+            delks_final = cell(size(hks_final));
+            for j = 1:cells
+                j_next = mod(j,cells) + 1;
+                j_prev = mod(j-2,cells) + 1;
+                delks_final{j} = (hks_final{j_next} - hks_final{j_prev})/(2*k_interval);
+            end
+            occ_orbs = cell(filled_bands,cells);
+            for j = 1:cells
+                [evec,eval] = eig(hks_init{1,j});
+                [~,ind] = sort(real(diag(eval)));
+                for b = 1:filled_bands
+                    occ_orbs{b,j} = evec(:,ind(b));
+                end
+            end
+            bs = zeros(numel(times),cells,filled_bands);
+            for t_index = 1:numel(times)
+                time = times(t_index);
+                for k_index = 1:cells
+                    tevol = expm(-1i*hks_final{k_index}*time);
+                    t_evol_hk = tevol' * ...
+                        delks_final{k_index} * tevol;
+                    for b_index = 1:filled_bands
+                        bs(t_index,k_index,b_index) = real(occ_orbs{b_index,k_index}' ...
+                            * t_evol_hk * occ_orbs{b_index,k_index});
+                    end
+                end
+            end
+        end
+        
+        function [bs,kvals] = berry_curvatures(ham_init,ham_final,cell_size,filled_bands,max_cell_hopping,times)
+            sites = size(ham_init,1);
+            cells = sites/cell_size;
+            kvals = (0:(cells-1))*2*pi/cells;
+            hks_init = cellfun(@(x) TopologicalInsulator.bloch_hamiltonian(...
+                ham_init,x,cell_size,max_cell_hopping),num2cell(kvals),...
+                'UniformOutput',false);
+            hks_final = cellfun(@(x) TopologicalInsulator.bloch_hamiltonian(...
+                ham_final,x,cell_size,max_cell_hopping),num2cell(kvals),...
+                'UniformOutput',false);
+            occ_orbs = cell(filled_bands,cells);
+            for j = 1:cells
+                [evec,eval] = eig(hks_init{1,j});
+                [~,ind] = sort(real(diag(eval)));
+                for b = 1:filled_bands
+                    occ_orbs{b,j} = evec(:,ind(b));
+                end
+            end
+            if times(1) == 0
+                times(1) = [];
+            end
+            prev_orbs = occ_orbs; prev_time = 0;
+            bs = zeros(numel(times),cells,filled_bands);
+            for t_index = 1:numel(times)
+                time = times(t_index);
+                curr_orbs = cell(filled_bands,cells);
+                for k_index = 1:numel(kvals)
+                    curr_orbs(:,k_index) = cellfun(...
+                        @(x) (expm(-1i*time*hks_final{k_index}) * x),...
+                        occ_orbs(:,k_index),'UniformOutput',false);
+                end
+                for k_index = 1:numel(kvals)
+                    kplus = mod(k_index,cells)+1;
+                    for b_index = 1:filled_bands
+                        diff_k = (curr_orbs{b_index,kplus} - curr_orbs{b_index,k_index})/(2*pi/cells);
+                        diff_t = (curr_orbs{b_index,k_index} - prev_orbs{b_index,k_index})/(time - prev_time);
+                        bs(t_index,k_index,b_index) = 2*imag(diff_k' * diff_t);
+                    end
+                end
+                prev_orbs = curr_orbs; prev_time = time;
             end
         end
         
@@ -156,7 +269,20 @@ classdef TopologicalInsulator
             end
         end
         
+        function [sorted_ks,sorted_orbs,ind] = sort_orbitals_by_wavevector(orbitals,cell_size)
+            sites = size(orbitals,1);
+            cells = sites/cell_size;
+            half_cells = uint32(floor(cells/2));
+            k_vals = mod((angle(orbitals(:,half_cells*cell_size + 1)) -...
+                angle(orbitals(:,1)))/half_cells,2*pi);
+            [sorted_ks,ind] = sort(k_vals);
+            sorted_orbs = orbitals(ind,:);
+        end
         
+        function [ks, blochs] = bloch_vectors_from_orbitals(orbitals,cell_size)
+            [ks,sorted_orbs,~] = TopologicalInsulator.sort_orbitals_by_wavevector(orbitals,cell_size);
+            blochs = sorted_orbs(:,1:cell_size);
+        end
 
         function ham = kitaev_chain_hamiltonian(mu, t, delta, sites, open)
             ham = diag(repmat(0.5*[mu, -mu],1,sites));
@@ -174,7 +300,31 @@ classdef TopologicalInsulator
             ham = ham + ham';
         end
         
-        
+        function dens = local_chern_densities_test(corrmat,cell_size)
+            sites = size(corrmat,1);
+            if mod(sites,cell_size) ~= 0
+                error('Correlation matrix size incommensurate with cell size');
+            end
+            
+            cells = sites/cell_size;
+            dens = zeros(1,cells);
+            pos_values = kron(0:(cells-1),ones(1,cell_size));
+            phase_values = exp(2i*pi*pos_values/cells);
+            modulation = zeros(1,sites);
+            lim1 = uint32(floor(cells/4));
+            lim2 = uint32(floor(3*cells/4));
+            modulation((lim1*cell_size + 1):(lim2*cell_size)) = 1;
+            %pos_values = pos_values .* modulation;
+            
+            prodmat = corrmat*diag(phase_values')*corrmat*diag(pos_values)*corrmat*diag(phase_values)*corrmat;
+            pd = diag(prodmat)
+            
+            for j = 1:(cells)
+                cell_pos_values = (j-1)*cell_size + (1:(cell_size));
+                  dens(j) = sum(pd(cell_pos_values));
+            end
+            dens = mod(dens,1);
+        end
         
         function dens = local_chern_densities(corrmat,cell_size)
             sites = size(corrmat,1);
@@ -187,21 +337,15 @@ classdef TopologicalInsulator
             pos_values = exp(2i*pi*kron(0:(cells-1),ones(1,cell_size))/cells);
             %pos_values = exp(((0:(sites-1)))*2i*pi/sites);
             
-            pos_values_red = exp(((1:(cells)))*2i*pi/cells);
-            epsilon = 1.e-6;
             pmat = corrmat*diag(pos_values)*corrmat;
             alpha = pi/4;
-            prodmat = corrmat*logm((corrmat*diag(pos_values)*corrmat) - (eye(size(corrmat)) - corrmat)*diag(pos_values*exp(1i*alpha))*(eye(size(corrmat)) - corrmat))*corrmat;
-            imag(diag(prodmat))*cells/(2*pi)
-            sum(imag(diag(prodmat))/(2*pi))
-            corrmat_red = zeros(cells);
-            for j = 1:cell_size
-                corrmat_red = corrmat_red + pmat((0:(cells-1))*cell_size + j,(0:(cells-1))*cell_size + j);
-            end
-            pd = diag(prodmat);
+            prodmat = logm(exp(1i*alpha)*((corrmat*diag(pos_values)*corrmat)^(cells) + (eye(size(corrmat)) - corrmat)));
+            transl = TopologicalInsulator.off_diagonal_matrix(cell_size,ones(1,cell_size),cells,false);
+            (imag(diag(prodmat)) - alpha)/(2*pi)
+            pd = (imag(diag(prodmat)) - alpha)/(2*pi);
             for j = 1:(cells)
                 cell_pos_values = (j-1)*cell_size + (1:(cell_size));
-                  dens(j) = sum(imag(pd(cell_pos_values))*cells/(2*pi));
+                  dens(j) = sum(pd(cell_pos_values));
             end
             dens = mod(dens,1);
         end
@@ -244,6 +388,71 @@ classdef TopologicalInsulator
             redcorrmat = corrmat(site1:site2,site1:site2);
             evals = eig(redcorrmat);
             spec = log(1 - evals) - log(evals);
+        end
+        
+        function fig_handle = plot_entanglement_spectrum(specs1,specs2,times)
+            assert(size(times,2) == size(specs1,2),...
+                'Dimension of times does not agree with spectrum provided');
+            pt_to_inch = 72;
+            width = 246; height = 170;
+            fig_handle = figure('Name', 'Entanglement spectrum',...
+                'Units','inches','Position',[4,3,width/pt_to_inch,height/pt_to_inch]);
+            
+            subplot(2,1,1)
+            
+            
+            
+            plot(times,abs(specs1));
+            ax1 = gca;
+            ylim([0,0.4]);
+            set(ax1,'TickLabelInterpreter','latex');
+            set(ax1,'FontSize',8);
+            set(ax1,'FontName','Times');
+            
+            set(ax1,'XTickLabel',[]);
+            set(ax1,'YTick',[0:0.2:0.4]);
+            
+            subplot(2,1,2)
+            plot(times,abs(specs2));
+            ax2 = gca;
+            xlab = xlabel('Time $t$','interpreter','latex');
+            ylab = ylabel('Entanglement energy $\epsilon_i$','interpreter','latex');
+            ylim([0,0.4]);
+            set(ax2,'TickLabelInterpreter','latex');
+            set(ax2,'FontSize',8);
+            set(ax2,'FontName','Times');
+            set(ax2,'YTick',[0,0.2]);
+            
+            leftmargin = 0.105;
+            rightmargin = 0.03;
+            topmargin = 0.03;
+            bottommargin = 0.13;
+            
+            pos1 = get(ax1,'Position');
+            pos2 = get(ax2,'Position');
+            pos1(1) = leftmargin;
+            pos2(1) = leftmargin;
+            pos2(2) = bottommargin;
+            figheight = (1 - topmargin - pos2(2))/2;
+            pos2(4) = figheight;
+            pos1(4) = figheight;
+            pos1(2) = pos2(2) + figheight -0.006;
+            pos1(3) = 1-pos1(1)-rightmargin;
+            pos2(3) = 1-pos2(1)-rightmargin;
+            set(ax1,'Position',pos1);
+            set(ax2,'Position',pos2);
+            set(xlab,'units','normalized');
+            set(ylab,'units','normalized');
+            posx= get(xlab,'Position');
+            posx(2) = -0.18;
+            set(xlab,'Position',posx);
+            posy= get(ylab,'Position');
+            posy(1) = -0.07;
+            posy(2) = 1;
+            set(ylab,'Position',posy);
+            
+            
+            
         end
         
         function ent = entanglement_entropy_from_correlation_matrix(corrmat, site1, site2)
