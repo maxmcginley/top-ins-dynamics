@@ -10,45 +10,16 @@ classdef TopologicalInsulator_SSH < TopologicalInsulator
     methods
         function obj = TopologicalInsulator_SSH(hoppingA,hoppingB,sites,open)
             ham = TopologicalInsulator_SSH.SSH_hamiltonian(hoppingA,hoppingB,sites,open);
-            obj@TopologicalInsulator(ham);
+            obj@TopologicalInsulator(ham,2);
             obj.hoppingA = hoppingA;
             obj.hoppingB = hoppingB;
         end
         
-        function [nus,js] = BL_topological_invariant(obj,init_spinors,times,k_vals)
-            assert(iscell(init_spinors),'Initial spinors must be provided as a cell');
-            assert(numel(init_spinors) == numel(k_vals),...
-                'Number of k values must match number of spinors');
-            bloch_vectors = zeros(2,numel(k_vals),numel(times));
-            for j = 1:numel(k_vals)
-                k = k_vals(j);
-                hamilt_k = [[0,obj.hoppingA + (obj.hoppingB')*exp(1i*k)];[0,0]];
-                hamilt_k = hamilt_k + hamilt_k';
-                for t_index = 1:numel(times)
-                    time = times(t_index);
-                    evol = expm(-1i*hamilt_k*time);
-                    bloch_vectors(:,j,t_index) = evol * init_spinors{j};
-                end
-            end
-            
-            nus = zeros(1,numel(times));
-            js = zeros(1,numel(times));
-            
-            for t_index = 1:numel(times)
-                nus(1,t_index) = TopologicalInsulator_SSH.BL_wilson_loops(...
-                    bloch_vectors(:,:,t_index));
-                ck = zeros(1,numel(k_vals));
-                for j = 1:numel(k_vals)
-                    k = k_vals(j);
-                    current_k = [[0,1i*(obj.hoppingB)*exp(1i*k)];[0,0]];
-                    current_k = current_k + current_k';
-                    sp = bloch_vectors(:,j,t_index);
-                    ck(j) = sp' * current_k * sp;
-                end
-                js(1,t_index) = sum(ck)/numel(k_vals);
-            end
-        end
         
+        function ham_k = BL_k_hamiltonian(obj,k)
+            ham_k = [[0, obj.hoppingA + (obj.hoppingB')*exp(1i*k)];[0,0]];
+            ham_k = ham_k + ham_k';
+        end
         
         
     end
@@ -71,23 +42,35 @@ classdef TopologicalInsulator_SSH < TopologicalInsulator
             end
         end
         
-        function sps = BL_constant_spinor(spinor,k_vals)
-            sps = cell(1,numel(k_vals));
-            sps(:) = {spinor};
+        function fig_handle = plot_current_entanglement(times,top_invars,deriv_top_invars,r_times,charges,r_currs,entanglements)
+            pt_to_inch = 72;
+            width = 246; height = 170;
+            fig_handle = figure('Name', 'Entanglement spectrum',...
+                'Units','inches','Position',[4,3,width/pt_to_inch,height/pt_to_inch]);
+            
+            hold on;
+            yyaxis left;
+            plot(times,top_invars-1);
+            plot(r_times,charges,'s');
+            ylim([-0.8,0]);
+            ylabel('CS$_1(t) - $ CS$_1(0)$','interpreter','latex');
+            yyaxis right;
+            plot(times(2:(end-1)),deriv_top_invars,'--');
+            plot(r_times,r_currs,'.','MarkerSize',12);
+            ylim([-inf,0.3]);
+            hold off;
+            xlabel('Time $t$','interpreter','latex');
+            ylabel('Current $j(t)$','interpreter','latex');
+            ax1 = gca;
+            
+            set(ax1,'TickLabelInterpreter','latex');
+            set(ax1,'FontSize',8);
+            set(ax1,'FontName','Times');
+            
+            box on;
         end
         
-        function wilson_loop = BL_wilson_loops(spins)
-            els = zeros(1,size(spins,2));
-            for j = 1:size(spins,2)
-                if j ~= size(spins,2)
-                    next = j+1;
-                else
-                    next = 1;
-                end
-                els(j) = spins(:,j)' * spins(:,next);
-            end
-            wilson_loop = mod(sum(angle(els))/(2*pi),1);
-        end
+
         
         %*************SYMMETRIES********************
         

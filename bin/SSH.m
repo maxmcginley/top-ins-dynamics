@@ -16,17 +16,18 @@ addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
 sites = 60;
-open = false;
+open = true;
 hopping_A = 0.3*exp(0i);
 hopping_B = 1*exp(0i);
 hopping_A2 = 0.7*exp(-0.1i);
 hopping_B2 = 1*exp(0.1i);
 hopping_A3 = 0.7*exp(-0i);
 hopping_B3 = 1*exp(0i);
-times = 0:0.1:20;
+times = 0.5:1:10;
+k_times = [0:0.01:0.09, 0.1:0.1:10];
 site1 = 13;
 site2 = 40;
-current_site = 18;
+current_site = 20;
 cell_size = 2;
 hopping_range = 1;
 %*********************************************
@@ -42,45 +43,41 @@ ins2 = TopologicalInsulator_SSH(hopping_A2,hopping_B2,sites,open);
 ins3 = TopologicalInsulator_SSH(hopping_A3,hopping_B3,sites,open);
 
 occupations = zeros(1,numel(times));
-spectra1 = zeros(site2 - site1 + 1,numel(times));
-spectra2 = zeros(site2 - site1 + 1,numel(times));
+spectra1 = zeros(site2 - site1 + 1,numel(k_times));
 
 currents = zeros(1,numel(times));
-currents_a = zeros(1,numel(times));
-%wannier_centres = zeros(sites/2,numel(times));
-prev_wannier = NaN;
-
-H2 = @(x) -x*exp(-x);
+charges = zeros(1,numel(times));
 
 curr_op_2 = TopologicalInsulator.current_operator_from_hamiltonian(ins2.hamiltonian,current_site,hopping_range);
-curr_op_2a = TopologicalInsulator.current_operator_from_hamiltonian(ins2.hamiltonian,current_site+4,hopping_range);
 
-%init_mat = ins.half_filled_correlation_matrix(-0.0005);
+charge_op = diag([zeros(1,current_site),ones(1,sites-current_site)]);
+
 init_mat = diag(repmat([1,0],1,sites/2));
+init_charge = trace(charge_op * init_mat.');
 
 for t_index = 1:numel(times)
     t = times(t_index);
     corrmat_t_1 = ins2.time_evolve_correlation_matrix(init_mat,t);
-    corrmat_t_2 = ins3.time_evolve_correlation_matrix(init_mat,t);
-    spectra1(:,t_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(...
-        corrmat_t_1, site1, site2)));
-    spectra2(:,t_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(...
-        corrmat_t_2, site1, site2)));
     currents(1,t_index) = trace(curr_op_2 * corrmat_t_1.');
-    currents_a(1,t_index) = sum(sum(curr_op_2a .* corrmat_t_1));
-    %wannier_centres(:,t_index) = TopologicalInsulator.wannier_centres(corrmat_t_1,prev_wannier,cell_size);
+    charges(1,t_index) = trace(charge_op * corrmat_t_1.') - init_charge;
+end
+
+for t_index_k = 1:numel(k_times)
+    t = k_times(t_index_k);
+    corrmat_t_1 = ins2.time_evolve_correlation_matrix(init_mat,t);
+    spectra1(:,t_index_k) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(...
+        corrmat_t_1, site1, site2)));
 end
 
 integrated_current_induced = (times(2) - times(1))*cumtrapz(currents);
-
-figure_handles{end+1} = TopologicalInsulator.correlation_length_plot(corrmat_t_1,open);
 
 topological_spectrum_indices = [(site2 - site1 + 1)/2, (site2 - site1 + 3)/2];
 
 num_ks = 300;
 k_vals = 2*pi * (0:(num_ks - 1))/ num_ks;
-[top_invars,k_currs] = ins2.BL_topological_invariant(TopologicalInsulator_SSH.BL_constant_spinor([1;0],k_vals),times,k_vals);
-deriv_top_invars = diff(top_invars)./ diff(times);
+[top_invars] = ins2.BL_topological_invariant(TopologicalInsulator.BL_constant_spinor([1;0],k_vals),k_times,k_vals);
+deriv_top_invars = diff(top_invars)./ diff(k_times);
+deriv_top_invars(1) = [];
 
 
 %% Test symmetries
@@ -95,31 +92,29 @@ fprintf('Time t: PHS = %d ; TRS = %d ; CHI = %d \n',abs(t_phs) < crit,abs(t_trs)
 
 %% Plotting
 
-figure_handles{end+1} = figure('Name','Occupation evolution');
-plot(times,real(occupations));
+figure_handles{end+1} = TopologicalInsulator_SSH.plot_current_entanglement(k_times,top_invars,deriv_top_invars,times,charges,currents,spectra1);
 
-figure_handles{end+1} = TopologicalInsulator.plot_entanglement_spectrum(spectra1,spectra2,times);
-
-figure_handles{end+1} = figure('Name','Current induced');
-subplot(2,1,1);
-hold on;
-plot(times,currents);
-plot(times,currents_a);
-plot(times,k_currs);
-hold off;
-subplot(2,1,2)
-plot(times,integrated_current_induced);
-
-figure_handles{end+1} = figure('Name','Topological Invariant');
-hold on;
-yyaxis left;
-plot(times,top_invars);
-yyaxis right;
-plot(times(1:(end-1)),-deriv_top_invars);
-plot(times,k_currs);
-hold off;
-xlabel('Time $t$','interpreter','latex');
-ylabel('$\nu$','interpreter','latex');
+% 
+% figure_handles{end+1} = TopologicalInsulator.plot_entanglement_spectrum(spectra1,spectra2,times);
+% 
+% figure_handles{end+1} = figure('Name','Current induced');
+% subplot(2,1,1);
+% hold on;
+% plot(times,currents);
+% plot(times,currents_a);
+% hold off;
+% subplot(2,1,2)
+% plot(times,integrated_current_induced);
+% 
+% figure_handles{end+1} = figure('Name','Topological Invariant');
+% hold on;
+% yyaxis left;
+% plot(times,top_invars);
+% yyaxis right;
+% plot(times(1:(end-1)),-deriv_top_invars);
+% hold off;
+% xlabel('Time $t$','interpreter','latex');
+% ylabel('$\nu$','interpreter','latex');
 
 %% Animation
 

@@ -17,19 +17,7 @@ addpath(fullfile(pwd,'..','TI'));
 %******************INPUT DATA*******************
 sites = 100;
 open =  false;
-a1 = 1*exp(0.8i);
-b1 = 0.5*exp(-0.5i);
-c1 = 0.2*exp(-0.2i);
-s1 = -5*exp(0i);
-breaking1 = 0;
-chiral_breaking1 = 0;
-
-a2 = 0.4*exp(0.2i);
-b2 = 2.8*exp(-0.5i);
-c2 = -3.2*exp(-0.1i);
-s2 = -2.9*exp(0.9i);
-breaking2 = 0;
-chiral_breaking2 = 0;
+en_scale = 2*pi;
 times = 0:0.01:10;
 site1 = 5;
 site2 = 8;
@@ -46,10 +34,10 @@ if mod(sites,cell_size) ~=0 && ~open
 end
 cells = sites/cell_size;
 
-ham = FlatBandHamiltonian.four_cell_hamiltonian({a1,b1,c1,s1},breaking1,chiral_breaking1,cells,open);
+ham = TopologicalInsulator_Flat(cells,open);
 
-ins = TopologicalInsulator(ham);
-figure_handles{end+1} = ins.plot_orbitals_in_energy_range(-0.01,0.01);
+ins_1 = TopologicalInsulator_Flat(en_scale,+1,sites,open);
+ins_2 = TopologicalInsulator_Flat(en_scale,-1,sites,open);
 
 
 zero_wavefunction = ins.zero_mode_wavefunction(-0.01,0.01);

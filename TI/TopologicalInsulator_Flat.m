@@ -14,7 +14,7 @@ classdef TopologicalInsulator_Flat < TopologicalInsulator
             [intracells,intercells] = TopologicalInsulator_Flat.hopping_values(...
                 en_scale,winding);
             obj@TopologicalInsulator(TopologicalInsulator_Flat.Flat_hamiltonian(...
-                intracells,intercells,sites,open));
+                intracells,intercells,sites,open),4);
             obj.intercells = intercells;
             obj.intracells = intracells;
         end

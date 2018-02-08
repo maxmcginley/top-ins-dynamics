@@ -1,4 +1,4 @@
-classdef TopologicalInsulator
+classdef (Abstract) TopologicalInsulator
     %UNTITLED2 Summary of this class goes here
     %   Detailed explanation goes here
     
@@ -7,16 +7,19 @@ classdef TopologicalInsulator
         hamiltonian
         spectrum
         orbitals
+        cell_size
     end
     
     
     
     methods
         %*************CONSTRUCTOR**********************
-        function obj = TopologicalInsulator(hamiltonian)
+        function obj = TopologicalInsulator(hamiltonian, cell_size)
             if size(hamiltonian,1) ~= size(hamiltonian,2)
                 error('Hamiltonian is not square');
             end
+            assert(mod(size(hamiltonian,1),cell_size) == 0,...
+                'Sites must be a multiple of cell size');
             if any(any(abs(hamiltonian - hamiltonian') > 1.e-13))
                 warning(['Sum of antihermitian part is ',...
                      num2str(sum(sum(abs(hamiltonian - hamiltonian'))))]);
@@ -28,6 +31,7 @@ classdef TopologicalInsulator
             [Evec, Eval] = eig(obj.hamiltonian);
             obj.orbitals = Evec';
             obj.spectrum = real(diag(Eval));
+            obj.cell_size = cell_size;
         end
         
         function fig_handle = plot_orbitals_in_energy_range(obj,lowerbound,upperbound)
@@ -87,10 +91,59 @@ classdef TopologicalInsulator
                 * init_wavefunction;
         end
         
-        
+        function nus = BL_topological_invariant(obj,init_spinors,times,k_vals)
+            assert(iscell(init_spinors),'Initial spinors must be provided as a cell');
+            assert(numel(init_spinors) == numel(k_vals),...
+                'Number of k values must match number of spinors');
+            occ_bands = size(init_spinors{1},2);
+            assert(size(init_spinors{1},1) == obj.cell_size,'Spinor size must equal cell size');
+            
+            bloch_vectors = zeros(obj.cell_size,occ_bands,numel(k_vals),numel(times));
+            for j = 1:numel(k_vals)
+                k = k_vals(j);
+                hamilt_k = obj.BL_k_hamiltonian(k);
+                for t_index = 1:numel(times)
+                    time = times(t_index);
+                    evol = expm(-1i*hamilt_k*time);
+                    bloch_vectors(:,:,j,t_index) = evol * init_spinors{j};
+                end
+            end
+            
+            nus = zeros(1,numel(times));
+            
+            for t_index = 1:numel(times)
+                nus(1,t_index) = TopologicalInsulator.BL_wilson_loops(...
+                    bloch_vectors(:,:,:,t_index));
+            end
+        end
+    end
+    
+    methods (Abstract)
+        ham_k = BL_k_hamiltonian(obj,k)
     end
     
     methods(Static)
+        
+        function sps = BL_constant_spinor(spinor,k_vals)
+            sps = cell(1,numel(k_vals));
+            sps(:) = {spinor};
+        end
+        
+        function wilson_loop = BL_wilson_loops(spins)
+            cell_size = size(spins,1);
+            occ_bands = size(spins,2);
+            num_ks = size(spins,3)
+            els = zeros(1,num_ks);
+            for j = 1:num_ks
+                if j ~= num_ks
+                    next = j+1;
+                else
+                    next = 1;
+                end
+                els(j) = det(spins(:,:,j)' * spins(:,:,next));
+            end
+            wilson_loop = mod(sum(angle(els))/(2*pi),1);
+        end
         
         %******************HAMILTONIAN CONSTRUCTION****************
         
@@ -181,7 +234,24 @@ classdef TopologicalInsulator
             v = creation_vec * corrmat * annihilation_vec.';
         end
         
-        
+        function [mats_out,ks] = k_space_matrix(mat_in,cell_size)
+            sites = size(mat_in,1);
+            cells = sites/cell_size;
+            mats_out = cell(1,cells);
+            ks = 2*pi*(0:(cells-1))/cells;
+            
+            for j = 1:cells
+                k = ks(j);
+                bloch = exp(1i * k * (0:(cells-1))).';
+                bloch_basis_vectors = zeros(sites,cell_size);
+                for p = 1:cell_size
+                    b = zeros(cell_size,1);
+                    b(p) = 1;
+                    bloch_basis_vectors(:,p) = kron(bloch,b);
+                end
+                mats_out{j} = bloch_basis_vectors' * mat_in * bloch_basis_vectors/cells;
+            end
+        end
         
         
         %********************WANNIER***************************
