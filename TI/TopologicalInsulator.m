@@ -71,6 +71,8 @@ classdef (Abstract) TopologicalInsulator
             end
         end
         
+        
+        
         %***************TIME EVOLUTION**************************
         
         function ham_fic = time_evolve_hamiltonian(obj,ham0,time)
@@ -251,6 +253,31 @@ classdef (Abstract) TopologicalInsulator
                 end
                 mats_out{j} = bloch_basis_vectors' * mat_in * bloch_basis_vectors/cells;
             end
+        end
+        
+        function invar = invariant_from_corrmats(mats,ks)
+            assert(iscell(mats),'k space matrices should be provided as cell');
+            assert(numel(mats) == numel(ks));
+            inv_mats = cell(size(mats));
+            for j = 1:numel(mats)
+                inv_mats{j} = inv(mats{j});
+            end
+            
+            invar = 0;
+            for k_ind = 1:numel(ks)
+                next = k_ind + 1;
+                prev = k_ind - 1;
+                if next > numel(ks)
+                    next = next - numel(ks);
+                end
+                if prev < 1
+                    prev = prev + numel(ks);
+                end
+                deriv = (inv_mats{next} - inv_mats{prev});
+                invar = invar + trace(mats{k_ind}*deriv);
+            end
+            
+            invar = invar/(2*pi);
         end
         
         
