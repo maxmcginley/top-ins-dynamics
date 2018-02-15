@@ -73,7 +73,7 @@ integrated_current_induced = (times(2) - times(1))*cumtrapz(currents);
 
 topological_spectrum_indices = [(site2 - site1 + 1)/2, (site2 - site1 + 3)/2];
 
-num_ks = 300;
+num_ks = 5;
 k_vals = 2*pi * (0:(num_ks - 1))/ num_ks;
 [top_invars] = ins2.BL_topological_invariant(TopologicalInsulator.BL_constant_spinor([1;0],k_vals),k_times,k_vals);
 deriv_top_invars = diff(top_invars)./ diff(k_times);

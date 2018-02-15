@@ -258,26 +258,28 @@ classdef (Abstract) TopologicalInsulator
         function invar = invariant_from_corrmats(mats,ks)
             assert(iscell(mats),'k space matrices should be provided as cell');
             assert(numel(mats) == numel(ks));
-            inv_mats = cell(size(mats));
+            blochs = cell(numel(mats),2);
             for j = 1:numel(mats)
-                inv_mats{j} = inv(mats{j});
+                [evec,eval] = eig(mats{j});
+                [sorted_vals, ind] = sort(real(diag(eval)));
+                lzeros = sorted_vals < 0.5;
+                sorted_vals(lzeros) = []; ind(lzeros) = [];
+                blochs{j,1} = evec(:,ind);
+                blochs{j,2} = sorted_vals;
             end
             
-            invar = 0;
+            els = zeros(1,numel(ks));
             for k_ind = 1:numel(ks)
                 next = k_ind + 1;
-                prev = k_ind - 1;
                 if next > numel(ks)
                     next = next - numel(ks);
                 end
-                if prev < 1
-                    prev = prev + numel(ks);
-                end
-                deriv = (inv_mats{next} - inv_mats{prev});
-                invar = invar + trace(mats{k_ind}*deriv);
+                assert(numel(blochs{next,2}) == numel(blochs{k_ind,2}),...
+                    'Unequal number of r zeros');
+                els(1,k_ind) = det(blochs{k_ind,1}' * blochs{next,1});
             end
             
-            invar = invar/(2*pi);
+            invar = mod(sum(angle(els))/(2*pi),1);
         end
         
         

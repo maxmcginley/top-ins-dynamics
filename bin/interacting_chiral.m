@@ -8,9 +8,9 @@ addpath(fullfile(pwd,'..','TI'));
 sites = 8;
 fill = sites/2;
 spintot = fill;
-U = 2;
-t_a = 1.01;
-t_b = 0.99;
+U = 1.5;
+t_a = 0.9;
+t_b = 1.1;
 spinful = false;
 %********************************************
 
