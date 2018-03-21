@@ -15,7 +15,7 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 60;
+sites = 24;
 open = true;
 hopping_A = 0.3*exp(0i);
 hopping_B = 1*exp(0i);
@@ -23,11 +23,11 @@ hopping_A2 = 0.7*exp(-0.1i);
 hopping_B2 = 1*exp(0.1i);
 hopping_A3 = 0.7*exp(-0i);
 hopping_B3 = 1*exp(0i);
-times = 0.5:1:10;
 k_times = [0:0.01:0.09, 0.1:0.1:10];
-site1 = 13;
-site2 = 40;
-current_site = 20;
+times = k_times;%0.5:1:10;
+site1 = 3;
+site2 = 10;
+current_site = 12;
 cell_size = 2;
 hopping_range = 1;
 %*********************************************
@@ -73,7 +73,7 @@ integrated_current_induced = (times(2) - times(1))*cumtrapz(currents);
 
 topological_spectrum_indices = [(site2 - site1 + 1)/2, (site2 - site1 + 3)/2];
 
-num_ks = 5;
+num_ks = 100;
 k_vals = 2*pi * (0:(num_ks - 1))/ num_ks;
 [top_invars] = ins2.BL_topological_invariant(TopologicalInsulator.BL_constant_spinor([1;0],k_vals),k_times,k_vals);
 deriv_top_invars = diff(top_invars)./ diff(k_times);

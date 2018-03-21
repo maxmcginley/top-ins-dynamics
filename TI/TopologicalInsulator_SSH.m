@@ -44,19 +44,20 @@ classdef TopologicalInsulator_SSH < TopologicalInsulator
         
         function fig_handle = plot_current_entanglement(times,top_invars,deriv_top_invars,r_times,charges,r_currs,entanglements)
             pt_to_inch = 72;
-            width = 246; height = 170;
+            width = 246; height = 140;
             fig_handle = figure('Name', 'Entanglement spectrum',...
                 'Units','inches','Position',[4,3,width/pt_to_inch,height/pt_to_inch]);
+            lw = 0.75;
             
             hold on;
             yyaxis left;
-            plot(times,top_invars-1);
-            plot(r_times,charges,'s');
+            plot(times,top_invars-1,'LineWidth',lw);
+            plot(r_times,charges,'--','LineWidth',lw);
             ylim([-0.8,0]);
-            ylabel('CS$_1(t) - $ CS$_1(0)$','interpreter','latex');
+            ylabel('CS$_1(t) - $ CS$_1(0)$; $Q(t)$','interpreter','latex');
             yyaxis right;
-            plot(times(2:(end-1)),deriv_top_invars,'--');
-            plot(r_times,r_currs,'.','MarkerSize',12);
+            plot(times(2:(end-1)),deriv_top_invars,'LineWidth',lw);
+            plot(r_times,r_currs,'-.','LineWidth',lw);
             ylim([-inf,0.3]);
             hold off;
             xlabel('Time $t$','interpreter','latex');
