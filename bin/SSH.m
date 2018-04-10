@@ -17,20 +17,36 @@ addpath(fullfile(pwd,'..','TI'));
 %******************INPUT DATA*******************
 sites = 24;
 open = true;
-hopping_A = 0.3*exp(0i);
-hopping_B = 1*exp(0i);
-hopping_A2 = 0.7*exp(-0.1i);
-hopping_B2 = 1*exp(0.1i);
-hopping_A3 = 0.7*exp(-0i);
-hopping_B3 = 1*exp(0i);
-k_times = [0:0.01:0.09, 0.1:0.1:10];
-times = k_times;%0.5:1:10;
-site1 = 3;
-site2 = 10;
+hopping_A = 0.3*exp(0.0i);
+hopping_B = 1*exp(0.0i);
+hopping_A2 = 0.8*exp(-0.3i);
+hopping_B2 = 1*exp(0.4i);
+hopping_A3 = 0.3;
+hopping_B3 = 1;
+hopping_A4 = 0.8;
+hopping_B4 = 1;
+hopping_A_third = 0.0;
+hopping_B_third = 0.0;
+times = [0:0.01:0.09, 0.1:0.1:10];
+site1 = 7;
+site2 = 18;
 current_site = 12;
 cell_size = 2;
-hopping_range = 1;
+hopping_range = 3;
+haldane_data_directory = 'haldane_data';
 %*********************************************
+
+header_lines = 22;
+
+haldane_data_1 = importdata(fullfile(haldane_data_directory,'data_trs_axial.txt'),',',header_lines);
+haldane_data_2 = importdata(fullfile(haldane_data_directory,'data_trs_only.txt'),',',header_lines);
+
+h_times_1 = haldane_data_1.data(:,1).';
+h_times_2 = haldane_data_2.data(:,1).';
+h_ents_1 = -log(haldane_data_1.data(:,3:end)).';
+h_ents_2 = -log(haldane_data_2.data(:,3:end)).';
+
+hal_times = 0:0.01:2;
 
 if mod(site1,2) ~= 1 || mod(site2,2) ~= 0
     error('Entanglement cut must not be within a unit cell');
@@ -38,52 +54,67 @@ end
 
 cells = sites/cell_size;
 
-ins = TopologicalInsulator_SSH(hopping_A,hopping_B,sites,open);
-ins2 = TopologicalInsulator_SSH(hopping_A2,hopping_B2,sites,open);
-ins3 = TopologicalInsulator_SSH(hopping_A3,hopping_B3,sites,open);
+ins1 = TopologicalInsulator_SSH(hopping_A,hopping_B,sites,open,hopping_A_third,hopping_B_third);
+ins1.spectrum
+ins2 = TopologicalInsulator_SSH(hopping_A2,hopping_B2,sites,open,hopping_A_third,hopping_B_third);
+ins3 = TopologicalInsulator_SSH(hopping_A3,hopping_B3,sites,open,hopping_A_third,hopping_B_third);
+ins4 = TopologicalInsulator_SSH(hopping_A4,hopping_B4,sites,open,hopping_A_third,hopping_B_third);
 
 occupations = zeros(1,numel(times));
-spectra1 = zeros(site2 - site1 + 1,numel(k_times));
 
-currents = zeros(1,numel(times));
-charges = zeros(1,numel(times));
+currents_2 = zeros(1,numel(times));
+charges_2 = zeros(1,numel(times));
+currents_4 = zeros(1,numel(times));
+charges_4 = zeros(1,numel(times));
+
+spec_1 = zeros(1,numel(times));
+spec_2 = zeros(1,numel(times));
 
 curr_op_2 = TopologicalInsulator.current_operator_from_hamiltonian(ins2.hamiltonian,current_site,hopping_range);
+curr_op_4 = TopologicalInsulator.current_operator_from_hamiltonian(ins4.hamiltonian,current_site,hopping_range);
 
-charge_op = diag([zeros(1,current_site),ones(1,sites-current_site)]);
 
-init_mat = diag(repmat([1,0],1,sites/2));
-init_charge = trace(charge_op * init_mat.');
+% charge_op = diag([zeros(1,current_site),ones(1,sites-current_site)]);
+charge_op = diag([ones(1,current_site),zeros(1,sites-current_site)]);
+
+%init_mat = diag(repmat([1,0],1,sites/2));
+init_mat_1 = ins1.half_filled_correlation_matrix(-0.1);
+init_mat_3 = ins3.half_filled_correlation_matrix(-0.1);
+
+init_charge_1 = real(trace(charge_op * init_mat_1.')); init_charge_1 = floor(init_charge_1);
+init_charge_3 = real(trace(charge_op * init_mat_3.')); init_charge_3 = floor(init_charge_3);
+
 
 for t_index = 1:numel(times)
     t = times(t_index);
-    corrmat_t_1 = ins2.time_evolve_correlation_matrix(init_mat,t);
-    currents(1,t_index) = trace(curr_op_2 * corrmat_t_1.');
-    charges(1,t_index) = trace(charge_op * corrmat_t_1.') - init_charge;
+    corrmat_t_2 = ins2.time_evolve_correlation_matrix(init_mat_1,t);
+    corrmat_t_4 = ins4.time_evolve_correlation_matrix(init_mat_3,t);
+    currents_2(1,t_index) = real(trace(curr_op_2 * corrmat_t_2.'));
+    charges_2(1,t_index) = real(trace(charge_op * corrmat_t_2.')) - init_charge_1;
+    
+    currents_4(1,t_index) = real(trace(curr_op_4 * corrmat_t_4.'));
+    charges_4(1,t_index) = real(trace(charge_op * corrmat_t_4.')) - init_charge_1;
+    
+    spec_1(1,t_index) = min(abs(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(corrmat_t_2, site1, site2)));
+    spec_2(1,t_index) = min(abs(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(corrmat_t_4, site1, site2)));
 end
 
-for t_index_k = 1:numel(k_times)
-    t = k_times(t_index_k);
-    corrmat_t_1 = ins2.time_evolve_correlation_matrix(init_mat,t);
-    spectra1(:,t_index_k) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(...
-        corrmat_t_1, site1, site2)));
-end
-
-integrated_current_induced = (times(2) - times(1))*cumtrapz(currents);
+integrated_current_induced = (times(2) - times(1))*cumtrapz(currents_2);
 
 topological_spectrum_indices = [(site2 - site1 + 1)/2, (site2 - site1 + 3)/2];
 
 num_ks = 100;
 k_vals = 2*pi * (0:(num_ks - 1))/ num_ks;
-[top_invars] = ins2.BL_topological_invariant(TopologicalInsulator.BL_constant_spinor([1;0],k_vals),k_times,k_vals);
-deriv_top_invars = diff(top_invars)./ diff(k_times);
-deriv_top_invars(1) = [];
+init_spinors_1 = ins1.BL_ground_spinors(k_vals);
+init_spinors_3 = ins3.BL_ground_spinors(k_vals);
+[top_invars_1] = ins2.BL_topological_invariant(init_spinors_1,times,k_vals);
+[top_invars_2] = ins4.BL_topological_invariant(init_spinors_3,times,k_vals);
 
 
 %% Test symmetries
 
-[init_trs,init_phs,init_chi] = TopologicalInsulator_SSH.test_symmetries(init_mat);
-[t_trs,t_phs,t_chi] = TopologicalInsulator_SSH.test_symmetries(corrmat_t_1);
+[init_trs,init_phs,init_chi] = TopologicalInsulator_SSH.test_symmetries(eye(size(init_mat_1)) - 2*init_mat_1);
+[t_trs,t_phs,t_chi] = TopologicalInsulator_SSH.test_symmetries(corrmat_t_2);
 
 crit = 1.e-6;
 
@@ -92,7 +123,7 @@ fprintf('Time t: PHS = %d ; TRS = %d ; CHI = %d \n',abs(t_phs) < crit,abs(t_trs)
 
 %% Plotting
 
-figure_handles{end+1} = TopologicalInsulator_SSH.plot_current_entanglement(k_times,top_invars,deriv_top_invars,times,charges,currents,spectra1);
+figure_handles{end+1} = TopologicalInsulator_SSH.plot_current_entanglement(times,top_invars_1,top_invars_2,charges_2,charges_4,spec_1,spec_2,h_times_1,h_ents_1,h_times_2,h_ents_2);
 
 % 
 % figure_handles{end+1} = TopologicalInsulator.plot_entanglement_spectrum(spectra1,spectra2,times);

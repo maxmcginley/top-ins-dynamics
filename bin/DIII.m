@@ -15,19 +15,19 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 40;
-open = true;
-mu = 0.5;
+sites = 128;
+open = false;
+mu = 1.2;
 delp = 1;
-dels_1 = 0.2;
-dels_2 = -0.8;
-alpha = 0.3;
+dels_1 = 0.4;
+dels_2 = -0.3;
+alpha = 0.6;
 times = 0:0.1:5;
 k_times = [0:0.01:0.09, 0.1:0.1:10];
 site1 = 1;
-site2 = 20;
+site2 = 64;
 current_site = 20;
-cell_size = 2;
+cell_size = 4;
 hopping_range = 1;
 %*********************************************
 
@@ -53,6 +53,18 @@ for t_index = 1:numel(times)
     spectra1(:,t_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(...
         corrmat_t_1, site1, site2)));
 end
+
+%% Test symmetries
+
+[init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(ins.hamiltonian);
+[t_trs,t_phs,t_chi] = TopologicalInsulator_DIII.test_symmetries(eye(size(corrmat_t_1)) - 2*corrmat_t_1);
+
+crit = 1.e-6;
+
+fprintf('Initially: PHS = %d ; TRS = %d ; CHI = %d \n',abs(init_phs) < crit,abs(init_trs) < crit,abs(init_chi) < crit);
+fprintf('Time t: PHS = %d ; TRS = %d ; CHI = %d \n',abs(t_phs) < crit,abs(t_trs) < crit,abs(t_chi) < crit);
+
+
 %% Plotting
 
 figure_handles{end+1} = figure('Name','Entanglement spectrum');

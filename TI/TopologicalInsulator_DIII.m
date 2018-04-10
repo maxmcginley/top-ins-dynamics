@@ -31,13 +31,13 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
         function ham = DIII_hamiltonian(mu,delp,dels,alpha, sites,open)
             cells = sites/4;
             
-            diags = [1-mu,1-mu,mu-1,mu-1];
+            diags = [1-mu,1-mu,mu-1,mu-1]*0.5;
             hop1 = dels*[0,1,0,0];
-            hop2 = delp*[-1,-1,0,0];
+            hop2 = delp*[0,0,-1,-1];
             hop3 = [-dels,1i*alpha,0,-1i*alpha];
             hop4 = [-1,-1,1,1]*0.5;
             hop5 = [1i*alpha,0,-1i*alpha,0];
-            hop6 = delp*[0,0,1,1];
+            hop6 = delp*[1,1,0,0];
             
             ham0 = TopologicalInsulator.off_diagonal_matrix(0,diags,cells,open);
             ham1 = TopologicalInsulator.off_diagonal_matrix(1,hop1,cells,open);
@@ -83,34 +83,30 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
         
         %*************SYMMETRIES********************
         
-        function C = nambu_operator(index,sites)
+        function C = nambu_operator(index1,index2,sites)
             if mod(sites,2) ~= 0
                 error('Nambu operator not defined on TIs with odd sites');
             end
-            switch index
-                case 1
-                    tau = [[0 1];[1 0]];
-                case 2
-                    tau = [[0 -1i];[1i 0]];
-                case 3
-                    tau = [[1 0];[0 -1]];
-                otherwise
-                    error('Invalid Pauli index');
-            end
-            C = kron(eye(sites/2),tau);
+            s = cell(3,1);
+            s{1} = [[0 1];[1 0]];
+            s{2} = [[0 -1i];[1i 0]];
+            s{3} = [[1 0];[0 -1]];
+            s{4} = eye(2);
+            C = kron(eye(sites/4),kron(s{index1},s{index2}));
         end
 %         
-        function [trs,phs,chi] = test_symmetries(corrmat)
-            sites = size(corrmat,1);
-            mat_phs = TopologicalInsulator_SSH.nambu_operator(1,sites) * ...
-                conj(corrmat) * TopologicalInsulator_SSH.nambu_operator(1,sites);
-            mat_trs = conj(corrmat);
-            mat_chi = TopologicalInsulator_SSH.nambu_operator(3,sites) * ...
-                corrmat * TopologicalInsulator_SSH.nambu_operator(3,sites);
+        function [trs,phs,chi] = test_symmetries(projector)
+            sites = size(projector,1);
+            trsop = TopologicalInsulator_DIII.nambu_operator(4,2,sites);
+            phsop = TopologicalInsulator_DIII.nambu_operator(1,2,sites);
+            chiop = TopologicalInsulator_DIII.nambu_operator(1,4,sites);
+            mat_trs = trsop *  conj(projector) * trsop';
+            mat_phs = phsop *  conj(projector) * phsop';
+            mat_chi = chiop *  projector * chiop';
 
-            phs = sum(sum(abs((eye(sites) - 2*corrmat) + (eye(sites) - 2*mat_phs))));
-            trs = sum(sum(abs((eye(sites) - 2*corrmat) - (eye(sites) - 2*mat_trs))));
-            chi = sum(sum(abs((eye(sites) - 2*corrmat) + (eye(sites) - 2*mat_chi))));
+            phs = sum(sum(abs(projector + mat_phs)));
+            trs = sum(sum(abs(projector - mat_trs)));
+            chi = sum(sum(abs(projector + mat_chi)));
             
         end
     end
