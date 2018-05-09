@@ -64,7 +64,7 @@ classdef (Abstract) Bloch_Hamiltonian
     methods (Static)
         
         function ks = generate_kvals(k_step,dim)
-            kvals = [(-0.5+k_step):k_step:0.5]*(2*pi);
+            kvals = ([(-0.5+k_step):k_step:0.5] - 0.25*k_step)*(2*pi);
             ks = cell(1,dim);
             for j = 1:dim
                 ks{j} = kvals;

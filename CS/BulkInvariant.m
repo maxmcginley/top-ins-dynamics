@@ -33,41 +33,52 @@ classdef BulkInvariant
     
     methods (Static)
         
-        function invar = ThreeD_CS(kvals,spinors)
-            perm1 = [2 3 1];
-            perm2 = [3 1 2];
-            
-            invar = 2*BulkInvariant.ThreeD_CS_component(kvals,spinors);
-            invar = invar + 2*BulkInvariant.ThreeD_CS_component(...
-                permute(kvals,perm1),permute(spinors,perm1));
-            invar = invar + 2*BulkInvariant.ThreeD_CS_component(...
-                permute(kvals,perm2),permute(spinors,perm2));
-        end
         
-        function invar = ThreeD_CS_component(kvals,spinors)
+        function invar = ThreeD_CS(kvals,spinors)
             invar = 0;
             nkv1 = numel(kvals{1}); nkv2 = numel(kvals{2}); nkv3 = numel(kvals{3});
+            prevw = warning;
+            warning('error','MATLAB:logm:nonPosRealEig');
             for ind_1 = 1:nkv1
                 for ind_2 = 1:nkv2
                     for ind_3 = 1:nkv3
-                        next1 = mod(ind_1,nkv1) + 1; next2 = mod(ind_2,nkv2) + 1; next3 = mod(ind_3,nkv3) + 1; 
-                        link(1) = det(spinors{ind_1,ind_2,ind_3}' * spinors{next1,ind_2,ind_3}); %U^P_1
-                        link(2) = det(spinors{ind_1,ind_2,ind_3}' * spinors{ind_1,next2,ind_3}); %U^P_2
-                        link(3) = det(spinors{ind_1,ind_2,ind_3}' * spinors{ind_1,ind_2,next3}); %U^P_3
+                        next1 = mod(ind_1,nkv1) + 1; next2 = mod(ind_2,nkv2) + 1; next3 = mod(ind_3,nkv3) + 1;
                         
-                        link(4) = det(spinors{next1,ind_2,ind_3}' * spinors{next1,next2,ind_3});
-                        link(5) = det(spinors{ind_1,next2,ind_3}' * spinors{next1,next2,ind_3});
+                        eAx = spinors{ind_1,ind_2,ind_3}' * spinors{next1,ind_2,ind_3};
+                        eAy = spinors{ind_1,ind_2,ind_3}' * spinors{ind_1,next2,ind_3};
+                        eAz = spinors{ind_1,ind_2,ind_3}' * spinors{ind_1,ind_2,next3};
                         
-                        if any(abs(link) < 1.e-5)
+%                         eAx = eAx / (abs(det(eAx)));
+%                         eAy = eAy / (abs(det(eAy)));
+%                         eAz = eAz / (abs(det(eAz)));
+                        
+                        eFxy = (eAx * spinors{next1,ind_2,ind_3}' * spinors{next1,next2,ind_3}) / ...
+                             (eAy * spinors{ind_1,next2,ind_3}' * spinors{next1,next2,ind_3});
+                        eFyz = (eAy * spinors{ind_1,next2,ind_3}' * spinors{ind_1,next2,next3}) / ...
+                             (eAz * spinors{ind_1,next2,ind_3}' * spinors{ind_1,next2,next3});
+                        eFzx = (eAz * spinors{ind_1,ind_2,next3}' * spinors{next1,ind_2,next3}) / ...
+                             (eAx * spinors{next1,ind_2,ind_3}' * spinors{next1,ind_2,next3});
+                        
+                        
+                        if any(abs([det(eAx),det(eAy),det(eAz)]) < 1.e-5)
                             warning('Singular link variables');
                         end
                         
-                        exp_curv = (link(1)*link(4))/(link(2)*link(5));
+                        try
+                            Ax = logm(eAx); Ay = logm(eAy); Az = logm(eAz);
+                        catch ME
+                            disp(['Oh no ',ME.identifier]);
+                        end
                         
-                        invar = invar + (-1/(8*(pi^2)))*(angle(exp_curv)*angle(link(3)) + (2/3)*angle(link(1))*angle(link(2))*angle(link(3)));
+%                         trace(Ax*logm(eFyz)) + trace(Az*logm(eFxy)) + trace(Ay*logm(eFzx))
+                        
+                        invar = invar + (-1/(8*(pi^2)))*(0.5*(trace(Ax*logm(eFyz)) + ...
+                            trace(Az*logm(eFxy)) + trace(Ay*logm(eFzx))) - trace(Ax*(Ay*Az - Az*Ay)));
+                        
                     end
                 end
             end
+            warning(prevw);
         end
         
         %Determinant of U^P := P U P
