@@ -16,26 +16,30 @@ addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
 sites = 24;
-open = true;
-velocity = 0.25;
-mass1 = -0.5;
-mass2 = -0.3;
-inversion = 0;
-chi_breaking = 0.5;
-times = [0,1,5];
-site1 = 25;
-site2 = 72;
+open = false;
+velocity = 1.25;
+mass_1 = 0.5;
+mass_2 = -0.8;
+inversion_1 = 0.4;
+inversion_2 = -0.3;
+chi_breaking = 0.2;
+disorder = 0.0;
+times = [0,1,4];
+site1 = sites+1;
+site2 = 3*sites;
 cell_size = 4;
 hopping_range = 1;
 num_ks = 25;
-frac_k_window = 0.2; %Fraction of BZ around zero
+frac_k_window = 0.05; %Fraction of BZ around zero
+k_centre = 0.5;
+crit = 1.e-6;
 %*********************************************
 
 if mod(site1,cell_size) ~= 1 || mod(site2,cell_size) ~= 0
     error('Entanglement cut must not be within a unit cell');
 end
 
-k_vals = ([0:(num_ks)] - num_ks/2)*2*pi*frac_k_window/num_ks;
+k_vals = (([0:(num_ks)] - floor(num_ks/2))*frac_k_window + k_centre*num_ks)*2*pi/num_ks;
 
 spec = zeros(numel(k_vals),numel(k_vals),sites*4);
 
@@ -47,10 +51,15 @@ gaps_2 = zeros(numel(k_vals),numel(k_vals));
 
 hamilts = cell(numel(k_vals),numel(k_vals));
 
+phs = TopologicalInsulator_CII.test_phs_symmetry(...
+    velocity,mass_1,inversion_1,chi_breaking,disorder,k_vals(end),k_vals(end),sites*4,open);
+
+fprintf('Hamiltonian: PHS = %d \n',abs(phs) < crit);
+
 for kx_index = 1:numel(k_vals)
     for ky_index = 1:numel(k_vals)
-        ins_k = TopologicalInsulator_CII(velocity,mass1,inversion,chi_breaking,k_vals(kx_index),k_vals(ky_index),sites,open);
-        ins_k_2 = TopologicalInsulator_CII(velocity,mass2,inversion,chi_breaking,k_vals(kx_index),k_vals(ky_index),sites,open);
+        ins_k = TopologicalInsulator_CII(velocity,mass_1,inversion_1,chi_breaking,disorder,k_vals(kx_index),k_vals(ky_index),sites,open);
+        ins_k_2 = TopologicalInsulator_CII(velocity,mass_2,inversion_2,chi_breaking,disorder,k_vals(kx_index),k_vals(ky_index),sites,open);
         hamilts{kx_index,ky_index} = ins_k.hamiltonian;
         spec(kx_index,ky_index,:) = ins_k.spectrum;
 
@@ -71,8 +80,6 @@ end
 
 init_chi = TopologicalInsulator_CII.test_chiral_symmetry(hamilts{1,1});
 
-crit = 1.e-6;
-
 fprintf('Hamiltonian: CHI = %d \n',abs(init_chi) < crit);
 
 %% Gaps
@@ -82,9 +89,9 @@ fprintf('Final gap is %f',min(min(abs(gaps_2))));
 
 %% Plotting
 
-%cont_spec = extract_continuous_spectrum(ent_spec);
+cont_spec = extract_continuous_spectrum(ent_spec);
 
-
+max_ent = 0.3;
 
 figure_handles{end+1} = figure('Name','Class CII Entanglement Spectrum before evolution');
 hold on;
@@ -93,7 +100,7 @@ for j= 1:(1+site2-site1)
 end
 hold off;
 view(17,22);
-zlim([-0.8,0.8]);
+zlim([-max_ent,max_ent]);
 
 figure_handles{end+1} = figure('Name','Class CII Entanglement Spectrum after evolution');
 hold on;
@@ -102,7 +109,7 @@ for j= 1:(1+site2-site1)
 end
 hold off;
 view(17,22);
-zlim([-0.8,0.8]);
+zlim([-max_ent,max_ent]);
 
 figure_handles{end+1} = figure('Name','Class CII Entanglement Spectrum after long evolution');
 hold on;
@@ -111,7 +118,7 @@ for j= 1:(1+site2-site1)
 end
 hold off;
 view(17,22);
-zlim([-0.8,0.8]);
+zlim([-max_ent,max_ent]);
 
 %% Functions
 

@@ -149,7 +149,7 @@ classdef (Abstract) TopologicalInsulator
         
         %******************HAMILTONIAN CONSTRUCTION****************
         
-        function mat = off_diagonal_matrix(off_index,vals,cells,open)
+        function mat = off_diagonal_matrix(off_index,vals,cells,open,varargin)
             if size(vals,1) ~= 1
                 error('Values should be given as row matrix');
             end
@@ -157,16 +157,27 @@ classdef (Abstract) TopologicalInsulator
                 mat = diag(repmat(vals,1,cells));
                 return;
             end
+            if numel(varargin) >= 1
+                disorder = varargin{1};
+            else
+                disorder = 0;
+            end
+            
+            
+            
             cell_size = size(vals,2);
             mat_size = cell_size*cells;
+            
+            vals_disord = repmat(vals,1,cells).*(1 + (rand(1,mat_size) - 0.5).*disorder);
+            
             corner_size = abs(off_index);
             principal_cells = idivide(mat_size - corner_size,uint32(cell_size),'floor');
             resid = mat_size - corner_size - principal_cells*cell_size;
-            principal_vec = [repmat(vals,1,principal_cells),vals(1:(resid))];
+            principal_vec = vals_disord(1:(mat_size - corner_size));
             
             mat = diag(principal_vec,off_index);
             if ~open
-                rem_vec = [vals((resid+1):cell_size),repmat(vals,1,cells - principal_cells - 1)];
+                rem_vec = vals_disord((mat_size-corner_size+1):end);
                 if off_index > 0
                     mat((mat_size+1-corner_size):mat_size,1:corner_size) = diag(rem_vec);
                 else
