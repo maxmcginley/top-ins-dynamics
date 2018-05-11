@@ -22,13 +22,13 @@ so_1 = 0.5;
 so_2 = 0.2;
 rashba = 0.1;
 sublattice = 0.23;
-times = 0:0.1:3;
+times = [0,2];
 site1 = 1;
 site2 = 80;
 cell_size = 8;
 hopping_range = 1;
 num_ks = 100;
-frac_k_window = 0.2; %Fraction of BZ around zero
+frac_k_window = 0.05; %Fraction of BZ around zero
 %*********************************************
 
 if mod(site1,2) ~= 1 || mod(site2,2) ~= 0
@@ -78,19 +78,22 @@ fprintf('Final gap is %f',min(abs(gaps_2)));
 
 %% Plotting
 
-cont_spec = extract_continuous_spectrum(ent_spec);
+%cont_spec = extract_continuous_spectrum(ent_spec);
 
-figure_handles{end+1} = figure('Name','Kane Mele Entanglement Spectrum');
-hold on;
-for t_index = 1:numel(times)
-    plot(k_vals/(2*pi),cont_spec(:,t_index).','Color',[sqrt(t_index/numel(times)),0,0]);
-    ylim([-0.3,0.3]);
-end
-hold off;
+%figure_handles{end+1} = figure('Name','Kane Mele Entanglement Spectrum');
 
-figure_handles{end+1} = figure('Name','Final Hamiltonian entanglement spetrum');
-plot(k_vals/(2*pi),ent_spec_aux.');
-ylim([-4,4]);
+figure_handles{end+1} = TopologicalInsulator_KM.entanglement_plot(k_vals,ent_spec(:,:,1),ent_spec(:,:,end));
+
+% hold on;
+% for t_index = 1:numel(times)
+%     plot(k_vals/(2*pi),cont_spec(:,t_index).','Color',[sqrt(t_index/numel(times)),0,0]);
+%     ylim([-0.3,0.3]);
+% end
+% hold off;
+
+% figure_handles{end+1} = figure('Name','Final Hamiltonian entanglement spetrum');
+% plot(k_vals/(2*pi),ent_spec_aux.');
+% ylim([-4,4]);
 
 %% Functions
 

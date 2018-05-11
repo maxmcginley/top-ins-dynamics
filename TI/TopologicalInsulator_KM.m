@@ -104,6 +104,103 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
             end
         end
         
+        function fig_handle = entanglement_plot(kvals,spec_init,spec_final)
+            width = 246; height = 110;
+            fig_handle = figure('Name','Kane Mele Entanglement Spectrum','Units','points',...
+                'position',[300,200,width,height]);
+            
+            pos_1 = spec_init(:,1) > 0; fp1 = find(pos_1); fp2 = find(~pos_1);
+            pos_2 = spec_final(:,1) > 0; fp3 = find(pos_2); fp4 = find(~pos_2);
+            [~,ind_1] = min(spec_init(pos_1,1));
+            [~,ind_2] = max(spec_init(~pos_1,1));
+            [~,ind_3] = min(spec_final(pos_2,1));
+            [~,ind_4] = max(spec_final(~pos_2,1));
+            
+            i1 = fp1(ind_1);
+            i2 = fp2(ind_2);
+            i3 = fp3(ind_3);
+            i4 = fp4(ind_4);
+            
+            zind = find(abs(kvals) < 1.e-10);
+            
+            spc1 = spec_init(i1,:);
+            spc2 = spec_init(i2,:);
+            
+            spc1(zind) = 0; spc2(zind) = 0;
+            tmp = spc1(zind:end);
+            spc1(zind:end) = spc2(zind:end);
+            spc2(zind:end) = tmp;
+            
+            
+            
+            leftmargin = 20;
+            bottommargin = 22;
+            gap = 7;
+            max_ent = 0.13;
+            max_k = max(kvals/(2*pi));
+            x_limit = max_k*1.1;
+            y_limit = max_ent*1.1;
+            x_tick = 0.02;
+            y_tick = 0.1;
+            b_label_width = 0.4;
+            l_arrow_width = 0.3;
+            
+            col1 = [     0    0.4470    0.7410];
+            col2 = [0.8500    0.3250    0.0980];
+            
+            fontsize = 8;
+            
+            plotwidth = (width - gap - leftmargin)/2;
+            
+            ax1 = axes('units','points','position',[leftmargin,bottommargin,plotwidth,height - bottommargin]);
+            plot(ax1,kvals/(2*pi),[spc1;spc2],'color',col1);
+            set(ax1,'Ylim',[-y_limit,y_limit]);
+            set(ax1,'XAxisLocation','origin');
+            set(ax1,'YAxisLocation','origin');
+            set(ax1,'Box','off');
+            set(ax1,'Xlim',[-x_limit,x_limit]);
+            set(ax1,'Xtick',[-x_tick,x_tick]);
+            %set(ax1,'Xticklabel',[-max_k,max_k]);
+            set(ax1,'Ytick',[-y_tick,y_tick]);
+            set(ax1,'TickLabelInterpreter','latex');
+            set(ax1,'fontsize',fontsize);
+            %xtickformat('%.2f');
+    
+            
+            ax2 = axes('units','points','position',[(leftmargin + gap + width)/2,bottommargin,plotwidth,height - bottommargin]);
+            plot(ax2,kvals/(2*pi),spec_final([i3,i4],:),'color',col2);
+            set(ax2,'Ylim',[-y_limit,y_limit]);
+            set(ax2,'XAxisLocation','origin');
+            set(ax2,'YAxisLocation','origin');
+            set(ax2,'Box','off');
+            set(ax2,'Xlim',[-x_limit,x_limit]);
+            set(ax2,'Xtick',[-x_tick,x_tick]);
+            set(ax2,'Ytick',[-y_tick,y_tick]);
+            set(ax2,'fontsize',fontsize);
+            set(ax2,'TickLabelInterpreter','latex');
+            
+            b_arrow_center = (width+leftmargin)/(2*width);
+            l_arrow_center = (height + bottommargin)/(2*height);
+            t_label_width = 0.2;
+            
+            annotation('textbox','String','Momentum $k_x/2\pi$','FitBoxToText','on',...
+                'Linestyle','none','interpreter','latex','Position',[b_arrow_center - (b_label_width/2),0.08*bottommargin/height,b_label_width,0.65*bottommargin/height],...
+                'HorizontalAlignment','center','fontsize',fontsize);
+            lab = ylabel('Entanglement energy $\epsilon_i$','interpreter','latex');
+            lab.Rotation = 90;
+            annotation('doublearrow',[b_arrow_center - (b_label_width/2),b_arrow_center + (b_label_width/2)],[0.02,0.02],...
+                'Head1Length',4,'Head2Length',4,'Head1Width',3,'Head2Width',3);
+            annotation('doublearrow',[(leftmargin/width)  - 0.02,(leftmargin/width) - 0.02],[l_arrow_center - (l_arrow_width/2),l_arrow_center + (l_arrow_width/2)],...
+                'Head1Length',4,'Head2Length',4,'Head1Width',3,'Head2Width',3);
+            
+            annotation('textbox','String','$t=0$','FitBoxToText','on',...
+                'Linestyle','none','interpreter','latex','Position',[(leftmargin + plotwidth/2)/width - t_label_width/2,0.5*bottommargin/height,t_label_width,0.5*bottommargin/height],...
+                'HorizontalAlignment','center','fontsize',fontsize);
+            annotation('textbox','String','$t=2J$','FitBoxToText','on',...
+                'Linestyle','none','interpreter','latex','Position',[1 - (plotwidth/(2*width)) - t_label_width/2,0.5*bottommargin/height,t_label_width,0.5*bottommargin/height],...
+                'HorizontalAlignment','center','fontsize',fontsize);
+        end
+        
     end
 end
 
