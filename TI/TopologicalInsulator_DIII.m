@@ -24,19 +24,31 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
            error('Not implemented');
         end
         
-        
+        %rho_q is the density matrix of the 2-level qubit system
+        function corrmat_edge = coherent_majorana_qubit(obj,majorana_limit,rho_q)
+            assert(all(size(rho_q) == [2,2]),'qubit must be provided as 2x2 density matrix');
+            maj_indices = find(abs(obj.spectrum) < majorana_limit);
+            assert(numel(maj_indices) == 4,'Should be 4 Majoranas present');
+            
+            subspace = kron(rho_q,eye(2));
+            
+            diag_mat = diag(double(obj.spectrum < 0));
+            %diag_mat = eye(numel(obj.spectrum))*0.5;
+            diag_mat(maj_indices,maj_indices) = subspace;
+            corrmat_edge = obj.orbitals' * diag_mat * obj.orbitals;
+        end
     end
     
     methods (Static)
         function ham = DIII_hamiltonian(mu,delp,dels,alpha, sites,open)
             cells = sites/4;
             
-            diags = [1-mu,1-mu,mu-1,mu-1]*0.5;
+            diags = [-mu,-mu,mu,mu]*0.5;
             hop1 = dels*[0,1,0,0];
             hop2 = delp*[0,0,-1,-1];
-            hop3 = [-dels,1i*alpha,0,-1i*alpha];
-            hop4 = [-1,-1,1,1]*0.5;
-            hop5 = [1i*alpha,0,-1i*alpha,0];
+            hop3 = [-dels,alpha,0,-alpha];
+            hop4 = [-1,-1,1,1];
+            hop5 = [-alpha,0,alpha,0];
             hop6 = delp*[1,1,0,0];
             
             ham0 = TopologicalInsulator.off_diagonal_matrix(0,diags,cells,open);
@@ -79,6 +91,14 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
             box on;
         end
         
+        function U = dirac_to_majorana_matrix(sites)
+            if mod(sites,4) ~= 0
+                error('matrix not defined on TIs with odd sites');
+            end
+            U = kron(eye(sites/4),kron([[1,1];[-1i,1i]],eye(2)));
+        end
+        
+        
 
         
         %*************SYMMETRIES********************
@@ -98,8 +118,8 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
         function [trs,phs,chi] = test_symmetries(projector)
             sites = size(projector,1);
             trsop = TopologicalInsulator_DIII.nambu_operator(4,2,sites);
-            phsop = TopologicalInsulator_DIII.nambu_operator(1,2,sites);
-            chiop = TopologicalInsulator_DIII.nambu_operator(1,4,sites);
+            phsop = TopologicalInsulator_DIII.nambu_operator(1,4,sites);
+            chiop = TopologicalInsulator_DIII.nambu_operator(1,2,sites);
             mat_trs = trsop *  conj(projector) * trsop';
             mat_phs = phsop *  conj(projector) * phsop';
             mat_chi = chiop *  projector * chiop';
