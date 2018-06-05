@@ -22,11 +22,11 @@ delp = 1;
 dels = 0.5;
 alpha = 0.4;
 TIME_STEP = 1;
-TIME_MAX = 100;
-POST_STEPS = 1900;
-quenches_per_step = 10;
-mu_min = -0.05;
-mu_max = 0.05;
+TIME_MAX = 10;
+POST_STEPS = 190;
+quenches_per_step = 20;
+mu_min = 0.0;
+mu_max = 0.1;
 num_mus = 25;
 cell_size = 4;
 hopping_range = 1;
@@ -136,9 +136,9 @@ for mu_index = 1:num_mus
         final_state_TRS_plus_real =  ...
             ins_TRS_2.time_evolve_correlation_matrix(final_state_TRS_plus_real,times(t_index) - times(t_index-1));
         final_state_Double_minus_real =  ...
-            ins_TRS_2.time_evolve_correlation_matrix(final_state_Double_minus_real,times(t_index) - times(t_index-1));
+            ins_Double_2.time_evolve_correlation_matrix(final_state_Double_minus_real,times(t_index) - times(t_index-1));
         final_state_Double_plus_real =  ...
-            ins_TRS_2.time_evolve_correlation_matrix(final_state_Double_plus_real,times(t_index) - times(t_index-1));
+            ins_Double_2.time_evolve_correlation_matrix(final_state_Double_plus_real,times(t_index) - times(t_index-1));
         
         final_state_TRS_minus(:,:,t_index) = ...
             final_state_TRS_minus(:,:,t_index) + (final_state_TRS_minus_real/num_mus);
@@ -169,8 +169,16 @@ for t_index = 1:numel(times)
     fid_matrix_TRS = conj(U_TRS) * (final_state_TRS_minus(:,:,t_index) - final_state_TRS_plus(:,:,t_index)) * U_TRS.';
     fid_matrix_Double = conj(U_Double) * (final_state_Double_minus(:,:,t_index) - final_state_Double_plus(:,:,t_index)) * U_Double.';
     
+    %*********NON-LOCALITY*************
+    left_sites = 1:(size(fid_matrix_Double,1)/2);
+    right_sites = ((size(fid_matrix_Double,1)/2) + 1):(size(fid_matrix_Double,1));
+    fid_matrix_Double_nonlocal = fid_matrix_Double;
+    fid_matrix_Double_nonlocal(left_sites,left_sites) = 0;
+    fid_matrix_Double_nonlocal(right_sites,right_sites) = 0;
+    %******************************
+    
     TRS_fidelities(1,t_index) = max(abs(eig(fid_matrix_TRS)));
-    Double_fidelities(1,t_index) = max(abs(eig(fid_matrix_Double)));
+    Double_fidelities(1,t_index) = max(abs(eig(fid_matrix_Double_nonlocal)));
 end
 
 
