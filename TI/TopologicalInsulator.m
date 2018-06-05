@@ -118,6 +118,20 @@ classdef (Abstract) TopologicalInsulator
                     bloch_vectors(:,:,:,t_index));
             end
         end
+        
+        function sps = BL_ground_state_spinors(obj,k_vals)
+            sps = cell(1,numel(k_vals));
+            for k_index = 1:numel(k_vals)
+                k = k_vals(k_index);
+                ham_k = obj.BL_k_hamiltonian(k);
+                [evec,d] = eig(ham_k);
+                eval = real(diag(d)); occs = eval < 0.0;
+                if any(occs ~= [1;1;0;0])
+                    error('OCCS');
+                end
+                sps{k_index} = evec(:,occs);
+            end
+        end
     end
     
     methods (Abstract)

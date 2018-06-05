@@ -15,18 +15,18 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 48;
+sites = 72;
 open = true;
-mu_1 = 0;
+mu_1 = 0.5;
 delp = 1;
 dels = 0.5;
 alpha = 0.4;
-TIME_STEP = 1;
+TIME_STEP = 5;
 TIME_MAX = 100;
-POST_STEPS = 1900;
-quenches_per_step = 10;
-mu_min = -0.05;
-mu_max = 0.05;
+POST_STEPS = 0;
+quenches_per_step = 20;
+mu_min = 0.45;
+mu_max = 0.55;
 num_mus = 25;
 cell_size = 4;
 hopping_range = 1;
@@ -64,6 +64,8 @@ state_Double_plus = ins_Double_1.coherent_majorana_qubit(majorana_limit,rxm);
 [init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(eye(size(state_TRS_minus)) - 2*state_TRS_minus);
 %[init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(ins_TRS_1.hamiltonian);
 
+
+double_phs = TopologicalInsulator_DoubleKitaev.test_phs(ins_Double_1.hamiltonian);
 double_phs = TopologicalInsulator_DoubleKitaev.test_phs(eye(size(state_Double_minus)) - 2*state_Double_minus);
 
 crit = 1.e-6;
@@ -136,9 +138,9 @@ for mu_index = 1:num_mus
         final_state_TRS_plus_real =  ...
             ins_TRS_2.time_evolve_correlation_matrix(final_state_TRS_plus_real,times(t_index) - times(t_index-1));
         final_state_Double_minus_real =  ...
-            ins_TRS_2.time_evolve_correlation_matrix(final_state_Double_minus_real,times(t_index) - times(t_index-1));
+            ins_Double_2.time_evolve_correlation_matrix(final_state_Double_minus_real,times(t_index) - times(t_index-1));
         final_state_Double_plus_real =  ...
-            ins_TRS_2.time_evolve_correlation_matrix(final_state_Double_plus_real,times(t_index) - times(t_index-1));
+            ins_Double_2.time_evolve_correlation_matrix(final_state_Double_plus_real,times(t_index) - times(t_index-1));
         
         final_state_TRS_minus(:,:,t_index) = ...
             final_state_TRS_minus(:,:,t_index) + (final_state_TRS_minus_real/num_mus);
@@ -178,9 +180,40 @@ end
 
 %% Plotting
 
-figure_handles{end+1} = figure('Name','Fidelity comparison');
+width = 246;
+height = 150;
+leftmargin = 34;
+rightmargin = 10;
+bottommargin = 25;
+topmargin = 6;
 
-plot(times,TRS_fidelities/2,'DisplayName','DIII');
-hold on;
-plot(times,Double_fidelities/2,'DisplayName','D');
-legend;
+pos = [300,200,width,height];
+
+figure_handles{end+1} = figure('Name','Fidelity comparison','Units','points','Position',pos);
+
+ax1 = axes('Units','points','Position',[leftmargin,bottommargin,width - leftmargin - rightmargin,...
+    height - topmargin - bottommargin]);
+
+leftcol = [0.9,0.97,1];
+rightcol = [1,1,1];
+
+rectangle(ax1,'Position',[0,0.5,TIME_MAX,0.5],'FaceColor',leftcol,'EdgeColor',leftcol);
+rectangle(ax1,'Position',[TIME_MAX,0.5,100,0.5],'FaceColor',rightcol,'EdgeColor',rightcol);
+line(ax1,[TIME_MAX,TIME_MAX],[0.5,1],'LineStyle','--','Color','black');
+
+hold(ax1,'on');
+h(1) = plot(ax1,times,TRS_fidelities/2,'DisplayName','DIII');
+h(2) = plot(ax1,times,Double_fidelities/2,'DisplayName','D');
+l = legend(h,'Location','SouthWest');
+l.Interpreter = 'latex';
+
+set(ax1,'TickLabelInterpreter','latex');
+xlabel(ax1,'Time $t$','interpreter','latex');
+ylabel(ax1,'Fidelity $\| \Gamma(\rho^+) - \Gamma(\rho^-)\|/2$','interpreter','latex');
+
+set(ax1,'YLim',[floor(min(TRS_fidelities/2)*10)/10,1]);
+set(ax1,'XLim',[0,times(end) + TIME_STEP]);
+
+set(ax1,'Layer','top')
+
+box(ax1,'on');

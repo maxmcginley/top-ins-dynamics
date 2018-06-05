@@ -29,13 +29,24 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
             assert(all(size(rho_q) == [2,2]),'qubit must be provided as 2x2 density matrix');
             maj_indices = find(abs(obj.spectrum) < majorana_limit);
             assert(numel(maj_indices) == 4,'Should be 4 Majoranas present');
+            pos_indices = maj_indices(obj.spectrum(maj_indices) > 0);
+            assert(numel(pos_indices) == 2,'Should be 2 Positive-eigenvalue Majoranas');
             
-            subspace = kron(rho_q,eye(2));
+            phsop = TopologicalInsulator_DIII.nambu_operator(1,4,numel(obj.spectrum));
+            pos_orbs = obj.orbitals(pos_indices,:)';
+            sym_orbs = [pos_orbs, phsop * conj(pos_orbs)]; %a_1 a_2 a_1^\dagger a_2^\dagger
+            
+            subspace = diag([rho_q(2,2),rho_q(2,2),rho_q(1,1),rho_q(1,1)]);
+            subspace(1,4) = -rho_q(1,2);
+            subspace(2,3) = rho_q(1,2);
+            subspace(3,2) = rho_q(2,1);
+            subspace(4,1) = -rho_q(2,1);
             
             diag_mat = diag(double(obj.spectrum < 0));
+            diag_mat(maj_indices,maj_indices) = zeros(4);
             %diag_mat = eye(numel(obj.spectrum))*0.5;
-            diag_mat(maj_indices,maj_indices) = subspace;
             corrmat_edge = obj.orbitals' * diag_mat * obj.orbitals;
+            corrmat_edge = corrmat_edge + sym_orbs * subspace * sym_orbs';
         end
     end
     

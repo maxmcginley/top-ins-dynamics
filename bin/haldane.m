@@ -74,7 +74,7 @@ fprintf('Final gap is %f',min(abs(gaps_2)));
 
 %% Plotting
 
-%cont_spec = extract_continuous_spectrum(ent_spec);
+cont_spec = extract_continuous_spectrum(ent_spec);
 
 figure_handles{end+1} = figure('Name','Kane Mele Entanglement Spectrum');
 hold on;
