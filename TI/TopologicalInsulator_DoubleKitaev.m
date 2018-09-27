@@ -5,15 +5,21 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
     properties
         mu
         del
-        % t = 1
+        t
     end
     
     methods
-        function obj = TopologicalInsulator_DoubleKitaev(mu,del,sites,open)
-            ham = TopologicalInsulator_DoubleKitaev.DoubleKitaev_hamiltonian(mu,del,sites,open);
-            obj@TopologicalInsulator(ham,4);
+        function obj = TopologicalInsulator_DoubleKitaev(t,mu,del,sites,open,varargin)
+            ham = TopologicalInsulator_DoubleKitaev.DoubleKitaev_hamiltonian(t,mu,del,sites,open);
+            if numel(varargin) > 0
+                diag = varargin{1};
+            else
+                diag = true;
+            end
+            obj@TopologicalInsulator(ham,4,diag);
             obj.mu = mu;
             obj.del = del;
+            obj.t = t;
         end
         
         
@@ -26,34 +32,57 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
             assert(all(size(rho_q) == [2,2]),'qubit must be provided as 2x2 density matrix');
             maj_indices = find(abs(obj.spectrum) < majorana_limit);
             assert(numel(maj_indices) == 4,'Should be 4 Majoranas present');
+            pos_indices = maj_indices(obj.spectrum(maj_indices) > 0);
+            assert(numel(pos_indices) == 2,'Should be 2 Positive-eigenvalue Majoranas');
             
-            subspace = kron(rho_q,eye(2));
+            phsop = TopologicalInsulator_DoubleKitaev.nambu_operator(1,numel(obj.spectrum));
+            pos_orbs = obj.orbitals(pos_indices,:)';
+            sym_orbs = [pos_orbs, phsop * conj(pos_orbs)]; %a_1 a_2 a_1^\dagger a_2^\dagger
+            
+            subspace = diag([rho_q(2,2),rho_q(2,2),rho_q(1,1),rho_q(1,1)]);
+            subspace(1,4) = -rho_q(1,2);
+            subspace(2,3) = rho_q(1,2);
+            subspace(3,2) = rho_q(2,1);
+            subspace(4,1) = -rho_q(2,1);
+            
+            sym_orbs = obj.orbitals(maj_indices,:)';
             
             diag_mat = diag(double(obj.spectrum < 0));
+            diag_mat(maj_indices,maj_indices) = zeros(4);
             %diag_mat = eye(numel(obj.spectrum))*0.5;
-            diag_mat(maj_indices,maj_indices) = subspace;
             corrmat_edge = obj.orbitals' * diag_mat * obj.orbitals;
+            corrmat_edge = corrmat_edge + sym_orbs * subspace * sym_orbs';
         end
     end
     
     methods (Static)
-        function ham_full = DoubleKitaev_hamiltonian(mu,del, sites,open)
-            cells = sites/4;
+        function ham = DoubleKitaev_hamiltonian(t,mu,del, sites,open)
+            cells = sites/2;
             
-            diags = [-mu,mu]*0.5;
-            hop1 = del*[0,-1];
-            hop2 = [-1,1];
-            hop3 = del*[1,0];
+            struc_1 = [0,-1];
+            struc_2 = [-1,1];
+            struc_3 = [1,0];
             
-            ham0 = TopologicalInsulator.off_diagonal_matrix(0,diags,cells,open);
-            ham1 = TopologicalInsulator.off_diagonal_matrix(1,hop1,cells,open);
-            ham2 = TopologicalInsulator.off_diagonal_matrix(2,hop2,cells,open);
-            ham3 = TopologicalInsulator.off_diagonal_matrix(3,hop3,cells,open);
+%             hop1 = del*[0,-1];
+%             hop2 = [-1,1];
+%             hop3 = del*[1,0];
+            
+            if numel(mu) == 1
+                diags = [-mu,mu]*0.5;
+                ham0 = TopologicalInsulator.off_diagonal_matrix(0,diags,cells,open);
+            else
+                mu_structure = [-0.5,0.5];
+                ham0 = TopologicalInsulator.off_diagonal_matrix(0,mu,cells,open,2,mu_structure);
+            end
+            
+            ham1 = TopologicalInsulator.off_diagonal_matrix(1,del,cells,open,2,struc_1);
+            ham2 = TopologicalInsulator.off_diagonal_matrix(2,t,cells,open,2,struc_2);
+            ham3 = TopologicalInsulator.off_diagonal_matrix(3,del,cells,open,2,struc_3);
             
             ham = ham0 + ham1 + ham2 + ham3;
             ham = ham + ham';
-            
-            ham_full = [[ham, zeros(size(ham))];[zeros(size(ham)), ham]];
+            ham((cells+1):end,1:cells) = 0;
+            ham(1:cells,(cells+1):end) = 0;
         end
         
         

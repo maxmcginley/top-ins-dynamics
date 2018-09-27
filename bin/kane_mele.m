@@ -15,23 +15,35 @@ figure_handles = cell(1,1);
 addpath(fullfile(pwd,'..','TI'));
 
 %******************INPUT DATA*******************
-sites = 20;
+sites = 40;
 open = false;
+
 hopping = 1;
 so_1 = 0.5;
-so_2 = 0.2;
+so_2 = 1.5;
 rashba = 0.1;
-sublattice = 0.23;
+sublattice = 0.2;
+
+nn = 0.3;
+phase_1 = 0.4;
+phase_2 = -0.2;
+sublattice_hal = 0.1;
+
 times = [0,2];
-site1 = 1;
-site2 = 80;
+
+site1_km = 1;
+site2_km = 160;
+
+site1_hal = 1;
+site2_hal = 80;
+
 cell_size = 8;
 hopping_range = 1;
-num_ks = 100;
-frac_k_window = 0.05; %Fraction of BZ around zero
+num_ks = 200;
+frac_k_window = 0.2; %Fraction of BZ around zero
 %*********************************************
 
-if mod(site1,2) ~= 1 || mod(site2,2) ~= 0
+if mod(site1_km,2) ~= 1 || mod(site2_km,2) ~= 0
     error('Entanglement cut must not be within a unit cell');
 end
 
@@ -39,42 +51,44 @@ k_vals = ([0:(num_ks)] - num_ks/2)*2*pi*frac_k_window/num_ks;
 
 spec = zeros(sites*8,numel(k_vals));
 
-ent_spec = zeros(1+site2-site1,numel(k_vals),numel(times));
-ent_spec_aux = zeros(1+site2-site1,numel(k_vals));
+ent_spec_hal = zeros(1+site2_hal-site1_hal,numel(k_vals),numel(times));
+ent_spec_km = zeros(1+site2_km-site1_km,numel(k_vals),numel(times));
 
-gaps_1 = zeros(1,numel(k_vals));
-gaps_2 = zeros(1,numel(k_vals));
-
-hamilts = cell(1,numel(k_vals));
+gaps_km = zeros(1,numel(k_vals));
+gaps_hal = zeros(1,numel(k_vals));
 
 for k_index = 1:numel(k_vals)
-    ins_k = TopologicalInsulator_KM(hopping,so_1,rashba,sublattice,k_vals(k_index),sites,open);
-    ins_k_2 = TopologicalInsulator_KM(hopping,so_2,rashba,sublattice,k_vals(k_index),sites,open);
-    hamilts{k_index} = ins_k.hamiltonian;
-    spec(:,k_index) = ins_k.spectrum;
+     ins_k_hal = TopologicalInsulator_Hal(hopping,nn,phase_1,sublattice_hal,k_vals(k_index),sites,open);
+    ins_k_2_hal = TopologicalInsulator_Hal(hopping,nn,phase_2,sublattice_hal,k_vals(k_index),sites,open);
     
-    gaps_1(1,k_index) = min(ins_k.spectrum);
-    gaps_2(1,k_index) = min(ins_k_2.spectrum);
+    ins_k_km = TopologicalInsulator_KM(hopping,so_1,rashba,sublattice,k_vals(k_index),sites,open);
+    ins_k_2_km = TopologicalInsulator_KM(hopping,so_2,rashba,sublattice,k_vals(k_index),sites,open);
     
-    corrmat_init = ins_k.half_filled_correlation_matrix(0);
+    spec(:,k_index) = ins_k_km.spectrum;
     
-    corrmat_aux = ins_k_2.half_filled_correlation_matrix(0);
+    gaps_km(1,k_index) = min(ins_k_km.spectrum);
+    gaps_hal(1,k_index) = min(ins_k_hal.spectrum);
+    
+    corrmat_init_hal = ins_k_hal.half_filled_correlation_matrix(-0.8);
+    corrmat_init_km = ins_k_km.half_filled_correlation_matrix(-0.8);
+    
     for t_index = 1:numel(times)
         time = times(t_index);
-        corrmat_t = ins_k_2.time_evolve_correlation_matrix(corrmat_init,time);
-        ent_spec(:,k_index,t_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(corrmat_t,site1,site2)));
+        corrmat_t_km = ins_k_2_km.time_evolve_correlation_matrix(corrmat_init_km,time);
+        corrmat_t_hal = ins_k_2_hal.time_evolve_correlation_matrix(corrmat_init_hal,time);
+        ent_spec_km(:,k_index,t_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(corrmat_t_km,site1_km,site2_km)));
+        ent_spec_hal(:,k_index,t_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(corrmat_t_hal,site1_hal,site2_hal)));
     end
-    ent_spec_aux(:,k_index) = sort(real(TopologicalInsulator.entanglement_spectrum_from_correlation_matrix(corrmat_aux,site1,site2)));
 end
 
 ind_choice = 5;
 
-TopologicalInsulator_KM.matrix_has_trs(hamilts{1,(num_ks/2) + 1 + ind_choice},hamilts{1,(num_ks/2) + 1 - ind_choice})
+%TopologicalInsulator_KM.matrix_has_trs(hamilts_km{1,(num_ks/2) + 1 + ind_choice},hamilts_km{1,(num_ks/2) + 1 - ind_choice})
 
 %% Gaps
 
-fprintf('Initial gap is %f',min(abs(gaps_1)));
-fprintf('Final gap is %f',min(abs(gaps_2)));
+fprintf('KM gap is %f',min(abs(gaps_km)));
+fprintf('Haldane gap is %f',min(abs(gaps_hal)));
 
 %% Plotting
 
@@ -82,7 +96,7 @@ fprintf('Final gap is %f',min(abs(gaps_2)));
 
 %figure_handles{end+1} = figure('Name','Kane Mele Entanglement Spectrum');
 
-figure_handles{end+1} = TopologicalInsulator_KM.entanglement_plot(k_vals,ent_spec(:,:,1),ent_spec(:,:,end));
+figure_handles{end+1} = TopologicalInsulator_KM.entanglement_plot(k_vals,ent_spec_hal(:,:,1),ent_spec_hal(:,:,end),ent_spec_km(:,:,1),ent_spec_km(:,:,end));
 
 % hold on;
 % for t_index = 1:numel(times)

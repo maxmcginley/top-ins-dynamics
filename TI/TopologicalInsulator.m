@@ -11,10 +11,9 @@ classdef (Abstract) TopologicalInsulator
     end
     
     
-    
     methods
         %*************CONSTRUCTOR**********************
-        function obj = TopologicalInsulator(hamiltonian, cell_size)
+        function obj = TopologicalInsulator(hamiltonian, cell_size,varargin)
             if size(hamiltonian,1) ~= size(hamiltonian,2)
                 error('Hamiltonian is not square');
             end
@@ -25,13 +24,23 @@ classdef (Abstract) TopologicalInsulator
                      num2str(sum(sum(abs(hamiltonian - hamiltonian'))))]);
                 error('Hamiltonian is not Hermitian');
             end
-            
+            obj.cell_size = cell_size;
             obj.sites = size(hamiltonian,1);
             obj.hamiltonian = (hamiltonian + hamiltonian')/2;
+            if numel(varargin) >= 1
+                diagonalize_ham = varargin{1};
+            else
+                diagonalize_ham = true;
+            end
+            if diagonalize_ham
+                obj = obj.generate_spectrum();
+            end
+        end
+        
+        function obj = generate_spectrum(obj)
             [Evec, Eval] = eig(obj.hamiltonian);
             obj.orbitals = Evec';
             obj.spectrum = real(diag(Eval));
-            obj.cell_size = cell_size;
         end
         
         function fig_handle = plot_orbitals_in_energy_range(obj,lowerbound,upperbound)
@@ -118,6 +127,20 @@ classdef (Abstract) TopologicalInsulator
                     bloch_vectors(:,:,:,t_index));
             end
         end
+        
+        function sps = BL_ground_state_spinors(obj,k_vals)
+            sps = cell(1,numel(k_vals));
+            for k_index = 1:numel(k_vals)
+                k = k_vals(k_index);
+                ham_k = obj.BL_k_hamiltonian(k);
+                [evec,d] = eig(ham_k);
+                eval = real(diag(d)); occs = eval < 0.0;
+                if any(occs ~= [1;1;0;0])
+                    error('OCCS');
+                end
+                sps{k_index} = evec(:,occs);
+            end
+        end
     end
     
     methods (Abstract)
@@ -153,22 +176,53 @@ classdef (Abstract) TopologicalInsulator
             if size(vals,1) ~= 1
                 error('Values should be given as row matrix');
             end
-            if off_index == 0
-                mat = diag(repmat(vals,1,cells));
-                return;
-            end
+            
             if numel(varargin) >= 1
-                disorder = varargin{1};
+                if mod(varargin{1},1) == 0
+                    cell_size = varargin{1};
+                else
+                    error('Non-integer cell size provided');
+                end
+                if numel(varargin) >= 2
+                    if numel(varargin{2}) == 1
+                        disorder = varargin{2};
+                    else
+                        cell_structure = varargin{2};
+                        disorder = 0;
+                        assert(numel(cell_structure) == cell_size,...
+                            'Cell structure incompatible with cell size');
+                    end
+                end
             else
                 disorder = 0;
+                cell_size = size(vals,2);
             end
             
             
             
-            cell_size = size(vals,2);
             mat_size = cell_size*cells;
             
-            vals_disord = repmat(vals,1,cells).*(1 + (rand(1,mat_size) - 0.5).*disorder);
+            if numel(vals) == cell_size
+                disp(['Off diagonal matrix rank ',num2str(off_index),...
+                    ' with repeated pattern ',num2str(vals)]);
+                vals_disord = repmat(vals,1,cells).*(1 + (rand(1,mat_size) - 0.5).*disorder);
+            elseif numel(vals) == 1
+                val_struc = vals*cell_structure;
+                 disp(['Off diagonal matrix rank ',num2str(off_index),...
+                    ' with repeated pattern ',num2str(val_struc)]);
+                vals_disord = repmat(val_struc,1,cells);
+            else
+                disp(['Off diagonal matrix rank ',num2str(off_index),' with repeated pattern ',...
+                    num2str(cell_structure),' and spatial structure...']);
+                disp(num2str(vals.'));
+                assert(numel(vals) >= cells,'Not enough Hamiltonian values provided');
+                vals_disord = kron(vals,cell_structure);
+            end
+            
+            if off_index == 0
+                mat = diag(vals_disord);
+                return;
+            end
             
             corner_size = abs(off_index);
             principal_cells = idivide(mat_size - corner_size,uint32(cell_size),'floor');

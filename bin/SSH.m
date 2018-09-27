@@ -7,6 +7,13 @@ if exist('figure_handles','var')
     clear('figure_handles');
 end
 
+%%
+% $x^2+e^{\pi i}$
+%%
+% 
+% $$e^{\pi i} + 1 = 0$$
+% 
+
 clc;
 clear;
 
