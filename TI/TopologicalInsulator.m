@@ -6,7 +6,7 @@ classdef (Abstract) TopologicalInsulator
         sites
         hamiltonian
         spectrum
-        orbitals
+        orbitals %Spatial structure is along a row
         cell_size
     end
     

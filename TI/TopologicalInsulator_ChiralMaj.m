@@ -1,25 +1,29 @@
-classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
+classdef TopologicalInsulator_ChiralMaj < TopologicalInsulator
     %2 band class BDI Hamiltonian with longer range hoppings
     %   Detailed explanation goes here
     
     properties
         mu
-        del
-        t
+        del1
+        t1
+        del2
+        t2
     end
     
     methods
-        function obj = TopologicalInsulator_DoubleKitaev(t,mu,del,sites,open,varargin)
-            ham = TopologicalInsulator_DoubleKitaev.DoubleKitaev_hamiltonian(t,mu,del,sites,open);
+        function obj = TopologicalInsulator_ChiralMaj(t1,t2,del1,del2,mu,sites,open,varargin)
+            ham = TopologicalInsulator_ChiralMaj.ChiralMaj_hamiltonian(t1,t2,del1,del2,mu,sites,open);
             if numel(varargin) > 0
                 diag = varargin{1};
             else
                 diag = true;
             end
-            obj@TopologicalInsulator(ham,4,diag);
+            obj@TopologicalInsulator(ham,2,diag);
             obj.mu = mu;
-            obj.del = del;
-            obj.t = t;
+            obj.del2 = del2;
+            obj.t2 = t2;
+            obj.del1 = del1;
+            obj.t1 = t1;
         end
         
         
@@ -32,14 +36,15 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
             assert(all(size(rho_q) == [2,2]),'qubit must be provided as 2x2 density matrix');
             maj_indices = find(abs(obj.spectrum) < majorana_limit);
             assert(numel(maj_indices) == 4,'Should be 4 Majoranas present');
+%             maj_wav = obj.orbitals(maj_indices,:);
+%             left_indices = sum(abs(maj_wav(:,1:(obj.sites/2))).^2) > 0.5;
+%             if left_indices(1) == left_indices(2)
+%                 pos_indices = maj_indices([1,3]);
+%             else
+%                 pos_indices = maj_indices([1,2]);
+%             end
             pos_indices = maj_indices(obj.spectrum(maj_indices) > 0);
-            if numel(pos_indices) ~= 2
-                warning('DoubleKitaev: Should be 2 Positive-eigenvalue Majoranas');
-                [~,ind] = sort(obj.spectrum(maj_indices));
-                pos_indices(1:2) = ind(3:4);
-                pos_indices(3:end) = [];
-            end
-            assert(numel(pos_indices) == 2);
+            assert(numel(pos_indices) == 2,'Should be 2 Positive-eigenvalue Majoranas');
             
             phsop = TopologicalInsulator_DoubleKitaev.nambu_operator(1,numel(obj.spectrum));
             pos_orbs = obj.orbitals(pos_indices,:)';
@@ -51,7 +56,7 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
             subspace(3,2) = rho_q(2,1);
             subspace(4,1) = -rho_q(2,1);
             
-            sym_orbs = obj.orbitals(maj_indices,:)';
+            %sym_orbs = obj.orbitals(maj_indices,:)';
             
             diag_mat = diag(double(obj.spectrum < 0));
             diag_mat(maj_indices,maj_indices) = zeros(4);
@@ -62,12 +67,15 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
     end
     
     methods (Static)
-        function ham = DoubleKitaev_hamiltonian(t,mu,del, sites,open)
+        function ham = ChiralMaj_hamiltonian(t1,t2,del1,del2,mu,sites,open)
             cells = sites/2;
             
             struc_1 = [0,-1];
             struc_2 = [-1,1];
-            struc_3 = [1,0];
+            struc_3_del1 = [1,0];
+            struc_3_del2 = [0,-1];
+            struc_4 = [-1,1];
+            struc_5 = [1,0];
             
 %             hop1 = del*[0,-1];
 %             hop2 = [-1,1];
@@ -81,14 +89,15 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
                 ham0 = TopologicalInsulator.off_diagonal_matrix(0,mu,cells,open,2,mu_structure);
             end
             
-            ham1 = TopologicalInsulator.off_diagonal_matrix(1,del,cells,open,2,struc_1);
-            ham2 = TopologicalInsulator.off_diagonal_matrix(2,t,cells,open,2,struc_2);
-            ham3 = TopologicalInsulator.off_diagonal_matrix(3,del,cells,open,2,struc_3);
+            ham1 = TopologicalInsulator.off_diagonal_matrix(1,del1,cells,open,2,struc_1);
+            ham2 = TopologicalInsulator.off_diagonal_matrix(2,t1,cells,open,2,struc_2);
+            ham3_1 = TopologicalInsulator.off_diagonal_matrix(3,del1,cells,open,2,struc_3_del1);
+            ham3_2 = TopologicalInsulator.off_diagonal_matrix(3,del2,cells,open,2,struc_3_del2);
+            ham4 = TopologicalInsulator.off_diagonal_matrix(4,t2,cells,open,2,struc_4);
+            ham5 = TopologicalInsulator.off_diagonal_matrix(5,del2,cells,open,2,struc_5);
             
-            ham = ham0 + ham1 + ham2 + ham3;
+            ham = ham0 + ham1 + ham2 + ham3_1 + ham3_2 + ham4 + ham5;
             ham = ham + ham';
-            ham((cells+1):end,1:cells) = 0;
-            ham(1:cells,(cells+1):end) = 0;
         end
         
         
@@ -115,12 +124,18 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
             C =kron(eye(sites/2),s{index});
         end
 %         
-        function phs = test_phs(projector)
+        function [trs,phs,chi] = test_symmetries(projector)
             sites = size(projector,1);
-            phsop = TopologicalInsulator_DoubleKitaev.nambu_operator(1,sites);
+            trsop = TopologicalInsulator_ChiralMaj.nambu_operator(4,sites);
+            phsop = TopologicalInsulator_ChiralMaj.nambu_operator(1,sites);
+            chiop = TopologicalInsulator_ChiralMaj.nambu_operator(1,sites);
+            mat_trs = trsop *  conj(projector) * trsop';
             mat_phs = phsop *  conj(projector) * phsop';
+            mat_chi = chiop *  projector * chiop';
 
             phs = sum(sum(abs(projector + mat_phs)));
+            trs = sum(sum(abs(projector - mat_trs)));
+            chi = sum(sum(abs(projector + mat_chi)));
             
         end
     end

@@ -13,31 +13,34 @@ clear;
 figure_handles = cell(1,1);
 
 addpath(fullfile(pwd,'..','TI'));
+addpath(fullfile(pwd,'..','TE'));
 
 %******************INPUT DATA*******************
-sites = 80;
+sites = 64;
 open = true;
 t = 1;
-mu_1 = 0.5;
+mu_1 = 0.25;
 delp = 1;
-dels = 0.5;
-alpha = 0.4;
+dels = 0.3;
+alpha = 0.2;
 
-timestep = 0.02;
-num_steps = 10000;
-steps_per_measure = 100;
+timestep = 0.025;
+num_steps = 16000;
+steps_per_measure = 40;
 num_values = num_steps/steps_per_measure;
 
 max_exp = 2;
 
 mu_fluc = 0.25;
 del_fluc = 0.15;
-freq_width = 100;
+freq_width = 200;
 
-reals = 10;
+reals = 40;
 cell_size = 4;
 hopping_range = 1;
 mu_patch_size = 2;
+
+num_insulators = 3;
 %*********************************************
 
 times = double((0:(num_values))).*(timestep*steps_per_measure);
@@ -45,12 +48,14 @@ full_times = ((0:(num_steps))).*(timestep);
 
 cells = sites/cell_size;
 
-ins_TRS_1 = TopologicalInsulator_DIII(t,mu_1,delp,dels,alpha,sites,open);
-%ins_TRS_2 = TopologicalInsulator_DIII(mu,delp,dels_2,alpha,sites,open);
-ins_Double_1 = TopologicalInsulator_DoubleKitaev(t,mu_1,delp,sites,open);
+ins_1 = cell(1,num_insulators);
 
-ins_TRS_1.spectrum
-ins_Double_1.spectrum
+
+
+ins_1{1} = TopologicalInsulator_DIII(t,mu_1,delp,dels,alpha,sites,open);
+%ins_TRS_2 = TopologicalInsulator_DIII(mu,delp,dels_2,alpha,sites,open);
+ins_1{2} = TopologicalInsulator_DoubleKitaev(t,mu_1,delp,sites,open);
+ins_1{3} = TopologicalInsulator_ChiralMaj(alpha,t,dels,delp,mu_1,sites/2,open);
 
 majorana_limit = 0.05;
 
@@ -58,97 +63,107 @@ rxp = 0.5*ones(2);
 rxm = 0.5*[[1,-1];[-1,1]];
 %rxm = [[1,0];[0,0]];
 
-state_TRS_minus = ins_TRS_1.coherent_majorana_qubit(majorana_limit,rxp);
-state_TRS_plus = ins_TRS_1.coherent_majorana_qubit(majorana_limit,rxm);
-state_Double_minus = ins_Double_1.coherent_majorana_qubit(majorana_limit,rxp);
-state_Double_plus = ins_Double_1.coherent_majorana_qubit(majorana_limit,rxm);
+state_minus = cell(1,num_insulators);
+state_plus = cell(1,num_insulators);
+
+for i = 1:num_insulators
+    ins_1{i}.spectrum
+    
+    state_minus{i} = ins_1{i}.coherent_majorana_qubit(majorana_limit,rxp);
+    state_plus{i} = ins_1{i}.coherent_majorana_qubit(majorana_limit,rxm);
+end
+
+
+
+
+
+final_state_minus = cell(1,num_insulators);
+final_state_plus = cell(1,num_insulators);
+
+assert(times(1) == 0,'First time must be zero');
+
+spectra = TimeEvolution_Noise.generate_poissonians([freq_width,freq_width],[mu_fluc,del_fluc]);
+
+ins_2 = cell(1,num_insulators);
+ins_3 = cell(1,num_insulators);
+
+mu_location_TRS = [ones(1,mu_patch_size),zeros(1,cells - mu_patch_size)];
+mu_location_Double = [ones(1,mu_patch_size),zeros(1,cells*2 - mu_patch_size)];
+mu_location_Chiral = [ones(1,mu_patch_size),zeros(1,cells - mu_patch_size)];
+
+%Defines where the final Hamiltonians are
+    ins_2{1} = TopologicalInsulator_DIII(0,mu_location_TRS,0,0,0,sites,open,false);
+    ins_2{2} = TopologicalInsulator_DoubleKitaev(0,mu_location_Double,0,sites,open,false);
+    ins_2{3} = TopologicalInsulator_ChiralMaj(0,0,0,0,mu_location_Chiral,sites/2,open,false);
+    
+    ins_3{1} = TopologicalInsulator_DIII(0,0,0,mu_location_TRS,0,sites,open,false);
+    ins_3{2} = TopologicalInsulator_DoubleKitaev(0,0,mu_location_Double,sites,open,false);
+    ins_3{3} = TopologicalInsulator_ChiralMaj(0,0,mu_location_Chiral,0,0,sites/2,open,false);
+    
+
+    tevol = cell(1,num_insulators);
+    
+    
+    
+for i = 1:num_insulators
+    final_state_minus{i} = zeros([size(state_minus{i}),numel(times)]);
+    final_state_plus{i} = zeros([size(state_plus{i}),numel(times)]);
+    
+    tevol_tmp = TimeEvolution_Noise(timestep,num_steps,max_exp,...
+        {ins_2{i}.hamiltonian,ins_3{i}.hamiltonian},spectra,reals,false,ins_1{i}.hamiltonian);
+    tevol{i} = tevol_tmp.allocate_phases(full_times);
+end
+
+prog_handle = waitbar(0,'Time evolving...');  
 
 %% Test symmetries
 
-[init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(eye(size(state_TRS_plus)) - 2*state_TRS_plus);
-%[init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(ins_TRS_1.hamiltonian);
+[init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(eye(size(state_plus{1})) - 2*state_plus{1});
+%[init_trs,init_phs,init_chi] = TopologicalInsulator_DIII.test_symmetries(ins_2{1}.hamiltonian);
+
+[init_trs_BDI,init_phs_BDI,init_chi_BDI] = TopologicalInsulator_ChiralMaj.test_symmetries(eye(size(state_plus{3})) - 2*state_plus{3});
+%[init_trs_BDI,init_phs_BDI,init_chi_BDI] = TopologicalInsulator_ChiralMaj.test_symmetries(ins_1{3}.hamiltonian);
 
 
-double_phs = TopologicalInsulator_DoubleKitaev.test_phs(ins_Double_1.hamiltonian);
-double_phs = TopologicalInsulator_DoubleKitaev.test_phs(eye(size(state_Double_plus)) - 2*state_Double_plus);
+double_phs = TopologicalInsulator_DoubleKitaev.test_phs(ins_2{2}.hamiltonian);
+double_phs = TopologicalInsulator_DoubleKitaev.test_phs(eye(size(state_plus{2})) - 2*state_plus{2});
 
 crit = 1.e-6;
 
 fprintf('DIII: PHS = %d ; TRS = %d ; CHI = %d \n',abs(init_phs) < crit,abs(init_trs) < crit,abs(init_chi) < crit);
 fprintf('D: PHS = %d \n',abs(double_phs) < crit);
+fprintf('BDI: PHS = %d ; TRS = %d ; CHI = %d \n',abs(init_phs_BDI) < crit,abs(init_trs_BDI) < crit,abs(init_chi_BDI) < crit);
 
 %% Time evolve
-
-final_state_TRS_minus = zeros([size(state_TRS_minus),numel(times)]);
-final_state_TRS_plus = zeros([size(state_TRS_plus),numel(times)]);
-final_state_Double_minus = zeros([size(state_Double_minus),numel(times)]);
-final_state_Double_plus = zeros([size(state_Double_plus),numel(times)]);
-
-assert(times(1) == 0,'First time must be zero');
-
-prog_handle = waitbar(0,'Time evolving...');
-    
-    mu_location_TRS = [ones(1,mu_patch_size),zeros(1,cells - mu_patch_size)];
-    mu_location_Double = [ones(1,mu_patch_size),zeros(1,cells*2 - mu_patch_size)];
-    
-    %Defines where the final Hamiltonians are
-    ins_TRS_2 = TopologicalInsulator_DIII(0,mu_location_TRS,0,0,0,sites,open,false);
-    ins_Double_2 = TopologicalInsulator_DoubleKitaev(0,mu_location_Double,0,sites,open,false);
-    
-    ins_TRS_3 = TopologicalInsulator_DIII(0,0,0,mu_location_TRS,0,sites,open,false);
-    ins_Double_3 = TopologicalInsulator_DoubleKitaev(0,0,mu_location_Double,sites,open,false);
-    
-    spectra = TimeEvolution_Noise.generate_poissonians([freq_width,freq_width],[mu_fluc,del_fluc]);
-    
-    tevol_TRS = TimeEvolution_Noise(timestep,num_steps,max_exp,...
-        {ins_TRS_2.hamiltonian,ins_TRS_3.hamiltonian},spectra,reals,false,ins_TRS_1.hamiltonian);
-    tevol_Double = TimeEvolution_Noise(timestep,num_steps,max_exp,...
-        {ins_Double_2.hamiltonian,ins_Double_3.hamiltonian},spectra,reals,false,ins_Double_1.hamiltonian);
-    
-    tevol_TRS = tevol_TRS.allocate_phases(full_times);
-    tevol_Double = tevol_Double.allocate_phases(full_times);
     
     for dis_index = 1:reals
         
         waitbar((dis_index-1)/reals,prog_handle);
         
-        final_state_TRS_minus_real = state_TRS_minus;
-        final_state_TRS_plus_real = state_TRS_plus;
-        final_state_Double_minus_real = state_Double_minus;
-        final_state_Double_plus_real = state_Double_plus;
+        final_state_minus_real = state_minus;
+        final_state_plus_real = state_plus;
         
-        final_state_TRS_minus(:,:,1) = ...
-                final_state_TRS_minus(:,:,1) + (final_state_TRS_minus_real/reals);
-            final_state_TRS_plus(:,:,1) = ...
-                final_state_TRS_plus(:,:,1) + (final_state_TRS_plus_real/reals);
-            final_state_Double_minus(:,:,1) = ...
-                final_state_Double_minus(:,:,1) + (final_state_Double_minus_real/reals);
-            final_state_Double_plus(:,:,1) = ...
-                final_state_Double_plus(:,:,1) + (final_state_Double_plus_real/reals);
-            
+        for i = 1:num_insulators
+            final_state_minus{i}(:,:,1) = ...
+                final_state_minus{i}(:,:,1) + (final_state_minus_real{i}/reals);
+            final_state_plus{i}(:,:,1) = ...
+                final_state_plus{i}(:,:,1) + (final_state_plus_real{i}/reals);
         
-        
-        
-        step = 0;
-        for t_index = 1:num_values
-            final_state_TRS_minus_real = tevol_TRS.evolve(...
-                final_state_TRS_minus_real,(t_index-1)*steps_per_measure,steps_per_measure,dis_index);
-            final_state_TRS_plus_real = tevol_TRS.evolve(...
-                final_state_TRS_plus_real,(t_index-1)*steps_per_measure,steps_per_measure,dis_index);
-            final_state_Double_minus_real = tevol_Double.evolve(...
-                final_state_Double_minus_real,(t_index-1)*steps_per_measure,steps_per_measure,dis_index);
-            final_state_Double_plus_real = tevol_Double.evolve(...
-                final_state_Double_plus_real,(t_index-1)*steps_per_measure,steps_per_measure,dis_index);
-            
-            final_state_TRS_minus(:,:,t_index+1) = ...
-                final_state_TRS_minus(:,:,t_index+1) + (final_state_TRS_minus_real/reals);
-            final_state_TRS_plus(:,:,t_index+1) = ...
-                final_state_TRS_plus(:,:,t_index+1) + (final_state_TRS_plus_real/reals);
-            final_state_Double_minus(:,:,t_index+1) = ...
-                final_state_Double_minus(:,:,t_index+1) + (final_state_Double_minus_real/reals);
-            final_state_Double_plus(:,:,t_index+1) = ...
-                final_state_Double_plus(:,:,t_index+1) + (final_state_Double_plus_real/reals);
-            
+
+            step = 0;
+            for t_index = 1:num_values
+
+                final_state_minus_real{i} = tevol{i}.evolve(...
+                    final_state_minus_real{i},(t_index-1)*steps_per_measure,steps_per_measure,dis_index);
+                final_state_plus_real{i} = tevol{i}.evolve(...
+                    final_state_plus_real{i},(t_index-1)*steps_per_measure,steps_per_measure,dis_index);
+                
+                final_state_minus{i}(:,:,t_index+1) = ...
+                    final_state_minus{i}(:,:,t_index+1) + (final_state_minus_real{i}/reals);
+                final_state_plus{i}(:,:,t_index+1) = ...
+                    final_state_plus{i}(:,:,t_index+1) + (final_state_plus_real{i}/reals);
+               
+            end
         end
         
 %         prev_index = max(q_index-1,1);
@@ -177,20 +192,26 @@ end
 
 %% Calculating fidelities
 
-TRS_fidelities = zeros(1,numel(times));
-Double_fidelities = zeros(1,numel(times));
 
-U_TRS = TopologicalInsulator_DIII.dirac_to_majorana_matrix(size(state_TRS_minus,1));
-U_Double = TopologicalInsulator_DoubleKitaev.dirac_to_majorana_matrix(size(state_Double_minus,1));
+%U_TRS = TopologicalInsulator_DIII.dirac_to_majorana_matrix(size(state_TRS_minus,1));
+%U_Double = TopologicalInsulator_DoubleKitaev.dirac_to_majorana_matrix(size(state_Double_minus,1));
 %U_TRS_inv = inv(U_TRS);
 %U_Double_inv = inv(U_Double);
+fidelities = cell(1,num_insulators);
+for i = 1:num_insulators
+    fidelities{i} = zeros(1,numel(times));
+end
 
 for t_index = 1:numel(times)
-    fid_matrix_TRS = conj(U_TRS) * (final_state_TRS_minus(:,:,t_index) - final_state_TRS_plus(:,:,t_index)) * U_TRS.'/2;
-    fid_matrix_Double = conj(U_Double) * (final_state_Double_minus(:,:,t_index) - final_state_Double_plus(:,:,t_index)) * U_Double.'/2;
+%     fid_matrix_TRS = conj(U_TRS) * (final_state_TRS_minus(:,:,t_index) - final_state_TRS_plus(:,:,t_index)) * U_TRS.'/2;
+%     fid_matrix_Double = conj(U_Double) * (final_state_Double_minus(:,:,t_index) - final_state_Double_plus(:,:,t_index)) * U_Double.'/2;
     
-    TRS_fidelities(1,t_index) = sqrt(trace(fid_matrix_TRS * fid_matrix_TRS'));
-    Double_fidelities(1,t_index) = sqrt(trace(fid_matrix_Double * fid_matrix_Double'));
+    
+
+    for i = 1:num_insulators
+        fid_matrix = final_state_minus{i}(:,:,t_index) - final_state_plus{i}(:,:,t_index);
+        fidelities{i}(t_index) = sqrt(trace(fid_matrix * fid_matrix'));
+    end
     
 %     %*********NON-LOCALITY*************
 %     left_sites_Double = [1:(size(fid_matrix_Double,1)/4), ((size(fid_matrix_Double,1)/2) + 1):(3*size(fid_matrix_Double,1)/4)];
@@ -237,8 +258,9 @@ rightcol = [1,1,1];
 % line(ax1,[TIME_MAX,TIME_MAX],[0.5,1],'LineStyle','--','Color','black');
 
 hold(ax1,'on');
-h(1) = plot(ax1,times,TRS_fidelities/2,'DisplayName','DIII');
-h(2) = plot(ax1,times,Double_fidelities/2,'DisplayName','D');
+h(1) = plot(ax1,times,fidelities{1}/2,'DisplayName','DIII');
+h(2) = plot(ax1,times,fidelities{2}/2,'DisplayName','D');
+h(3) = plot(ax1,times,fidelities{3}/2,'DisplayName','BDI');
 l = legend(h,'Location','SouthWest');
 l.Interpreter = 'latex';
 
@@ -246,7 +268,7 @@ set(ax1,'TickLabelInterpreter','latex');
 xlabel(ax1,'Time $t$','interpreter','latex');
 ylabel(ax1,'Fidelity $\| \Gamma(\rho^+) - \Gamma(\rho^-)\|/2$','interpreter','latex');
 
-set(ax1,'YLim',[floor(min(TRS_fidelities/2)*10)/10,1]);
+set(ax1,'YLim',[floor(min(fidelities{1}/2)*10)/10,1]);
 set(ax1,'XLim',[0,times(end)]);
 
 set(ax1,'Layer','top')
