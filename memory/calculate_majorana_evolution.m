@@ -8,14 +8,19 @@ state_plus = cell(1,maj_params.num_insulators);
 data_times = maj_params.data_times();
 full_times = maj_params.full_times();
 
-final_state_minus_rs = zeros([maj_params.reals,maj_params.num_insulators,size(state_minus{1}),numel(data_times)]);
-final_state_plus_rs = zeros([maj_params.reals,maj_params.num_insulators,size(state_minus{1}),numel(data_times)]);
+final_state_minus_rs = cell(maj_params.reals,maj_params.num_insulators);
+final_state_plus_rs = cell(maj_params.reals,maj_params.num_insulators);
+
 
 for i = 1:maj_params.num_insulators
     display(maj_params.insulator_init{i}.spectrum)
     
     state_minus{i} = maj_params.insulator_init{i}.coherent_majorana_qubit(maj_params.majorana_limit,maj_params.subspace_plus);
     state_plus{i} = maj_params.insulator_init{i}.coherent_majorana_qubit(maj_params.majorana_limit,maj_params.subspace_minus);
+    for dis_index = 1:maj_params.reals
+        final_state_minus_rs{dis_index,i} = NaN([size(state_minus{i}),numel(data_times)]);
+        final_state_plus_rs{dis_index,i} = NaN([size(state_plus{i}),numel(data_times)]);
+    end
 end
 
 spectra = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,maj_params.spec_amps);
@@ -31,7 +36,7 @@ for i = 1:maj_params.num_insulators
     tevol{i} = tevol_tmp.allocate_phases(full_times);
 end
 
-prog_handle = waitbar(0,'Time evolving...');  
+% prog_handle = waitbar(0,'Time evolving...');  
 
 %% Test symmetries
 
@@ -52,15 +57,19 @@ prog_handle = waitbar(0,'Time evolving...');
 % fprintf('BDI: PHS = %d ; TRS = %d ; CHI = %d \n',abs(init_phs_BDI) < crit,abs(init_trs_BDI) < crit,abs(init_chi_BDI) < crit);
 
 %% Time evolve
-    reals = double(maj_params.reals);
+    reals = maj_params.reals;
     
     if maj_params.run_parallel
         num_cores = Inf;
     else
         num_cores = 0;
     end
+    
+    num_ins = maj_params.num_insulators;
+    num_vals = maj_params.num_vals();
+    steps_per_measure = maj_params.steps_per_measure;
 
-    parfor (dis_index = 1:maj_params.reals,num_cores)
+    parfor (dis_index = 1:reals,num_cores)
         
 %         if ~maj_params.run_parallel
 %             waitbar((dis_index-1)/reals,prog_handle);
@@ -68,55 +77,44 @@ prog_handle = waitbar(0,'Time evolving...');
         
         
         
-        for i = 1:maj_params.num_insulators
+        for i = 1:num_ins
             final_state_minus_real = state_minus{i};
             final_state_plus_real = state_plus{i};
             
 %             final_state_minus(dis_index,i,:,:,1) = (final_state_minus_real);
 %             final_state_plus(dis_index,i,:,:,1) = (final_state_plus_real);
         
-            for t_index = 1:(maj_params.num_vals()+1)
+            for t_index = 1:(num_vals+1)
 
                 if t_index > 1
                 final_state_minus_real = tevol{i}.evolve(...
-                    final_state_minus_real{i},(t_index)*maj_params.steps_per_measure,...
-                    maj_params.steps_per_measure,dis_index);
+                    final_state_minus_real,(t_index-2)*steps_per_measure,...
+                    steps_per_measure,dis_index);
                 final_state_plus_real = tevol{i}.evolve(...
-                    final_state_plus_real{i},(t_index)*maj_params.steps_per_measure,...
-                    maj_params.steps_per_measure,dis_index);
+                    final_state_plus_real,(t_index-2)*steps_per_measure,...
+                    steps_per_measure,dis_index);
                 end
                 
-                final_state_minus_rs(dis_index,i,:,:,t_index) = (final_state_minus_real);
-                final_state_plus_rs(dis_index,i,:,:,t_index) = (final_state_plus_real);
+                final_state_minus_rs{dis_index,i}(:,:,t_index) = (final_state_minus_real);
+                final_state_plus_rs{dis_index,i}(:,:,t_index) = (final_state_plus_real);
                
             end
         end
         
-%         prev_index = max(q_index-1,1);
-%         
-%         time = TIME_STEP*(q_index - prev_index);
-%         
-%         final_state_TRS_minus_real =  ...
-%             ins_TRS_2.time_evolve_correlation_matrix(final_state_TRS_minus_real,time);
-%         final_state_TRS_plus_real =  ...
-%             ins_TRS_2.time_evolve_correlation_matrix(final_state_TRS_plus_real,time);
-%         final_state_Double_minus_real = ...
-%             ins_Double_2.time_evolve_correlation_matrix(final_state_Double_minus_real,time);
-%         final_state_Double_plus_real =  ...
-%             ins_Double_2.time_evolve_correlation_matrix(final_state_Double_plus_real,time);
-%         
-%         if mod(q_index - 1,quenches_per_step) == 0
-%             t_index = (q_index - 1)/quenches_per_step + 1;
-%             
-%         end
     end
     
-    final_state_minus = reshape(mean(final_state_minus_rs,1),
+    final_state_minus = cell(1,num_ins);
+    final_state_plus = cell(1,num_ins);
+    
+    for i=1:num_ins
+        final_state_minus{i} = mean(cat(4,final_state_minus_rs{:,i}),4);
+        final_state_plus{i} = mean(cat(4,final_state_plus_rs{:,i}),4);
+    end
     
 
-if ishandle(prog_handle)
-    close(prog_handle);
-end
+% if ishandle(prog_handle)
+%     close(prog_handle);
+% end
 
 end
 

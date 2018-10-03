@@ -27,7 +27,7 @@ maj_params.max_exp = 2;
 
 maj_params.reals = 10;
 
-maj_params.run_parallel = false;
+maj_params.run_parallel = true;
 
 system_params = struct();
 
