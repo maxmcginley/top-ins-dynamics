@@ -23,6 +23,8 @@ for i = 1:maj_params.num_insulators
     end
 end
 
+test_symmetries(state_plus);
+
 spectra = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,maj_params.spec_amps);
     
 tevol = cell(1,maj_params.num_insulators);
