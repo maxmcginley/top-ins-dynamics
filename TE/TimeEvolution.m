@@ -53,7 +53,7 @@ classdef (Abstract) TimeEvolution
             for n = 1:max_exp
                 inc = inc + prev_exp;
                 if n < max_exp
-                    prev_exp = prev_exp * inc_in *(1./(n+1));
+                    prev_exp = prev_exp * inc_in *(1./double(n+1));
                 end
             end
         end

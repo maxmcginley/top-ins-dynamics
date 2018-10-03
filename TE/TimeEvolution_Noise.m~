@@ -66,7 +66,7 @@ classdef TimeEvolution_Noise < TimeEvolution
         
         %Angular frequencies (times 2 pi)
         function fs = generate_frequencies(timestep,num_steps)
-            fs = double(1:(num_steps - 1)) * (2*pi/(timestep*double(num_steps)));
+            fs = double(1:(num_steps - 1)) * (2*pi/(timestep*num_steps));
         end
         
         function amps = randomize_amplitudes(frequencies,spectrum,num_reals,rand_phase)
