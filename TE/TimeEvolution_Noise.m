@@ -58,7 +58,7 @@ classdef TimeEvolution_Noise < TimeEvolution
                 'Must provide equal numbers of widths and amplitudes');
             spectra = cell(size(widths));
             for i = 1:numel(widths)
-                spectra{i} = @(x) ((amplitudes(i)*widths(i)).^2)*((widths(i).^2 + x.^2).^(-1));
+                spectra{i} = @(x) (amplitudes(i).^2)*(2*widths(i)/pi)*((widths(i).^2 + x.^2).^(-1));
             end
         end
         
@@ -71,7 +71,7 @@ classdef TimeEvolution_Noise < TimeEvolution
             widths = sqrt(spectrum(frequencies));
             widths(1) = 0;
             amps = randn([numel(frequencies),1]) .* ...
-                reshape(widths,[numel(widths),1]) * (1/sqrt(2*numel(frequencies)));
+                reshape(widths,[numel(widths),1]) * (sqrt(2*max(frequencies)/numel(frequencies)));
             if rand_phase
                 phases = exp(1i * rand(size(amps)) * 2 * pi);
                 amps = amps .* phases;
