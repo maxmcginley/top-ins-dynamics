@@ -21,15 +21,15 @@ filename = 'majorana_memory_out.mat';
 %******************INPUT DATA*******************
 maj_params = MajoranaMemory_Params();
 
-maj_params.timestep = 0.025;
-maj_params.num_steps = 200;
-maj_params.steps_per_measure = 10;
+maj_params.timestep = 0.1;
+maj_params.num_steps = 8000;
+maj_params.steps_per_measure = 40;
 
-maj_params.max_exp = 2;
+maj_params.max_exp = 3;
 
-maj_params.reals = 10;
+maj_params.reals = 50;
 
-maj_params.run_parallel = false;
+maj_params.run_parallel = true;
 
 system_params = struct();
 
@@ -43,8 +43,8 @@ system_params.mu_patch_size = 2;
 
 maj_params.system_params = system_params;
 
-maj_params.spec_freq_widths = [200,200];
-maj_params.spec_amps = [0.25,0.15];
+maj_params.spec_freq_widths = [400,400];
+maj_params.spec_amps = [0.025,0.0125];
 
 RUN = false;
 SAVE = true;
@@ -70,45 +70,6 @@ end
 if ~RUN
 output = load(filename);
 
-
-width = 246;
-height = 150;
-leftmargin = 34;
-rightmargin = 10;
-bottommargin = 25;
-topmargin = 6;
-
-pos = [300,200,width,height];
-
-figure_handles{end+1} = figure('Name','Fidelity comparison','Units','points','Position',pos);
-
-ax1 = axes('Units','points','Position',[leftmargin,bottommargin,width - leftmargin - rightmargin,...
-    height - topmargin - bottommargin]);
-
-leftcol = [0.9,0.97,1];
-rightcol = [1,1,1];
-
-% rectangle(ax1,'Position',[0,0.5,TIME_MAX,0.5],'FaceColor',leftcol,'EdgeColor',leftcol);
-% rectangle(ax1,'Position',[TIME_MAX,0.5,100,0.5],'FaceColor',rightcol,'EdgeColor',rightcol);
-% line(ax1,[TIME_MAX,TIME_MAX],[0.5,1],'LineStyle','--','Color','black');
-
-hold(ax1,'on');
-h(1) = plot(ax1,output.maj_params.data_times(),output.fidelities{1}/2,'DisplayName','DIII');
-h(2) = plot(ax1,output.maj_params.data_times(),output.fidelities{2}/2,'DisplayName','D');
-h(3) = plot(ax1,output.maj_params.data_times(),output.fidelities{3}/2,'DisplayName','BDI');
-l = legend(h,'Location','SouthWest');
-l.Interpreter = 'latex';
-
-set(ax1,'TickLabelInterpreter','latex');
-xlabel(ax1,'Time $t$','interpreter','latex');
-ylabel(ax1,'Fidelity $\| \Gamma(\rho^+) - \Gamma(\rho^-)\|/2$','interpreter','latex');
-
-%set(ax1,'YLim',[floor(min(output.fidelities{1}/2)*10)/10,1]);
-set(ax1,'YLim',[-inf,1]);
-set(ax1,'XLim',[0,max(output.maj_params.data_times())]);
-
-set(ax1,'Layer','top')
-
-box(ax1,'on');
+figure_handles{end+1} = majorana_memory_plot(output.fidelities,output.maj_params.data_times());
 
 end

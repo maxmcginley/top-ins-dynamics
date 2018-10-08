@@ -8,12 +8,12 @@ classdef TimeEvolution_Noise < TimeEvolution
         frequencies
         num_channels
         static_ham
-        t_phases
+        signal
         times
     end
     
     methods
-        function obj = TimeEvolution_Noise(timestep,num_steps,max_exp,hams,spectra,reals,rand_phase,static_ham)
+        function obj = TimeEvolution_Noise(timestep,num_steps,max_exp,hams,spectra,rand_phase,static_ham)
             obj@TimeEvolution(timestep,num_steps,max_exp);
             assert(iscell(hams)); assert(iscell(spectra));
             assert(numel(hams) == numel(spectra),...
@@ -22,33 +22,31 @@ classdef TimeEvolution_Noise < TimeEvolution
             obj.hams = hams;
             obj.static_ham = static_ham;
             obj.frequencies = TimeEvolution_Noise.generate_frequencies(obj.timestep,obj.num_steps);
-            obj.fourier_amplitudes = zeros(numel(hams),numel(obj.frequencies),reals);
+            obj.fourier_amplitudes = zeros(numel(hams),numel(obj.frequencies));
             for i = 1:numel(spectra)
                 amps_i = TimeEvolution_Noise.randomize_amplitudes(...
-                    obj.frequencies,spectra{i},reals,rand_phase);
-                obj.fourier_amplitudes(i,:,:) = reshape(amps_i,[1,size(amps_i)]);
+                    obj.frequencies,spectra{i},rand_phase);
+                obj.fourier_amplitudes(i,:) = reshape(amps_i,[1,numel(amps_i)]);
             end
         end
         
-        function ham = calculate_hamiltonian(obj,t_step,real_number)
+        function ham = calculate_hamiltonian(obj,t_step,~)
 %             if isempty(real_number)
 %                 error('Realization number not given');
 %             end
-            phases = obj.t_phases(t_step+1,:);
             ham = obj.static_ham;
             for i = 1:obj.num_channels
-                signal_i = imag(phases * (obj.fourier_amplitudes(i,:,real_number).'));
+                signal_i = imag(obj.signal(i,mod(t_step,size(obj.signal,2))+1));
                 ham = ham + signal_i*obj.hams{i};
             end
         end
         
-        function sigs = calculate_signals(obj,t_step,channel_number,real_number)
-            phases = obj.t_phases(t_step+1,:);
-            sigs = imag(phases * (obj.fourier_amplitudes(channel_number,:,real_number).'));
+        function sigs = calculate_signals(obj,t_step,channel_number)
+            sigs = imag(obj.signal(channel_number,t_step));
         end
         
         function obj = allocate_phases(obj,times)
-            obj.t_phases = exp(1i * obj.frequencies .* reshape(times,[numel(times),1]));
+            obj.signal = ifft(obj.fourier_amplitudes,[],2)*size(obj.fourier_amplitudes,2);
             obj.times = times;
         end
         
@@ -66,12 +64,13 @@ classdef TimeEvolution_Noise < TimeEvolution
         
         %Angular frequencies (times 2 pi)
         function fs = generate_frequencies(timestep,num_steps)
-            fs = double(1:(num_steps - 1)) * (2*pi/(timestep*double(num_steps)));
+            fs = double(0:(num_steps - 1)) * (2*pi/(timestep*double(num_steps)));
         end
         
-        function amps = randomize_amplitudes(frequencies,spectrum,num_reals,rand_phase)
+        function amps = randomize_amplitudes(frequencies,spectrum,rand_phase)
             widths = sqrt(spectrum(frequencies));
-            amps = randn([numel(frequencies),num_reals]) .* ...
+            widths(1) = 0;
+            amps = randn([numel(frequencies),1]) .* ...
                 reshape(widths,[numel(widths),1]);
             if rand_phase
                 phases = exp(1i * rand(size(amps)) * 2 * pi);
