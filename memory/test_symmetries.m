@@ -10,7 +10,7 @@ function test_symmetries(states_in)
 % double_phs = TopologicalInsulator_DoubleKitaev.test_phs(ins_2{2}.hamiltonian);
 double_phs = TopologicalInsulator_DoubleKitaev.test_phs(eye(size(states_in{2})) - 2*states_in{2});
 
-crit = 1.e-6;
+crit = 1.e-5;
 
 fprintf('DIII: PHS = %d ; TRS = %d ; CHI = %d \n',abs(init_phs) < crit,abs(init_trs) < crit,abs(init_chi) < crit);
 fprintf('D: PHS = %d \n',abs(double_phs) < crit);

@@ -16,60 +16,78 @@ addpath(fullfile(pwd,'..','TI'));
 addpath(fullfile(pwd,'..','TE'));
 addpath(fullfile(pwd,'..','memory'));
 
-filename = 'majorana_memory_out.mat';
+file_directory = fullfile('/','rscratch','mm2025','data','majorana');
+filename = fullfile(file_directory,'majorana_memory_out.mat');
+
+detailed_save = false;
+
+VARY_AMPLITUDE = true;
+TESTING = false;
 
 %******************INPUT DATA*******************
-maj_params = MajoranaMemory_Params();
+if TESTING
+    run(fullfile(file_directory,'memory_input_testing.m'));
+else
+    run(fullfile(file_directory,'memory_input.m'));
+end
 
-maj_params.timestep = 0.1;
-maj_params.num_steps = 8000;
-maj_params.steps_per_measure = 40;
-
-maj_params.max_exp = 3;
-
-maj_params.reals = 50;
-
-maj_params.run_parallel = true;
-
-system_params = struct();
-
-system_params.sites = 16;
-system_params.t = 1;
-system_params.mu_init = 0.25;
-system_params.del_1 = 1;
-system_params.del_2 = 0.3;
-system_params.alpha = 0.2;
-system_params.mu_patch_size = 2;
-
-maj_params.system_params = system_params;
-
-maj_params.spec_freq_widths = [400,400];
-maj_params.spec_amps = [0.025,0.0125];
-
-RUN = false;
+RUN = true;
 SAVE = true;
 %*********************************************
 
 if RUN
-    maj_params = setup_insulators(maj_params);    
+    while true
+        reply = input('Running new simulation... Previous data saved?','s');
+        if strcmp(reply,'q') || strcmp(reply,'quit')
+            disp('Exiting...');
+            return
+        elseif strcmp(reply,'yes')
+            break
+        else
+            disp('Unrecognised input\n');
+        end
+    end
+    
+    if VARY_AMPLITUDE
+        params_in = cell(size(amplitudes,1),1);
+        for amp_index = 1:size(amplitudes,1)
+            maj_copy = maj_params;
+            maj_copy.spec_amps = amplitudes(amp_index,:);
+            maj_copy = setup_insulators(maj_copy);
+            params_in{amp_index,1} = maj_copy;
+        end
+    else
+        maj_params = setup_insulators(maj_params);
+        params_in = {maj_params};
+    end
 
-    [final_state_minus,final_state_plus] = calculate_majorana_evolution (maj_params);
-
-    fidelities = compute_majorana_fidelities(final_state_minus,final_state_plus);
+    outputs = MajoranaMemory_Params.run_jobs(params_in,detailed_save);
 end
 %% Saving data
 
 if RUN && SAVE
-    output = struct('final_state_minus',{final_state_minus},'final_state_plus',{final_state_plus},...
-        'maj_params',maj_params,'fidelities',{fidelities});
-    save(filename,'-struct','output');
+    save(filename,'outputs');
 end
 
 %% Plotting
 
 if ~RUN
-output = load(filename);
+outputs_struct = load(filename);
+outputs = outputs_struct.outputs;
 
-figure_handles{end+1} = majorana_memory_plot(output.fidelities,output.maj_params.data_times());
+if numel(outputs) == 1
+    output = outputs{1};
+    if isfield(output,'final_state_minus') && isfield(output,'final_state_plus')
+        fidelities = compute_majorana_fidelities(output.final_state_minus,output.final_state_plus);
+    elseif isfield(output,'fidelities')
+        fidelities = output.fidelities;
+    else
+        error('Invalid output format')
+    end
+
+    figure_handles{end+1} = majorana_memory_plot(fidelities,output.maj_params.data_times());
+else
+    figure_handles{end+1} = majorana_amplitude_plot(outputs);
+end
 
 end

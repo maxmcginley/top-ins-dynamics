@@ -25,13 +25,13 @@ end
 
 test_symmetries(state_plus);
 
-spectra = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,maj_params.spec_amps);
+
 
 %% Time evolve
     reals = maj_params.reals;
     
     if maj_params.run_parallel
-        num_cores = Inf;
+        num_cores = 3;
     else
         num_cores = 0;
     end
@@ -44,6 +44,7 @@ spectra = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,m
     max_exp = maj_params.max_exp;
     hamiltonians = maj_params.hamiltonians;
     ins_init = maj_params.insulator_init;
+    spectra = maj_params.spectra;
 
     parfor (dis_index = 1:reals,num_cores)
     %*****DEBUG_MODE***********
@@ -55,7 +56,7 @@ spectra = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,m
         for i = 1:num_ins
             
             tevol_tmp = TimeEvolution_Noise(timestep,num_steps,max_exp,...
-            hamiltonians(i,:),spectra,false,ins_init{i}.hamiltonian);
+            hamiltonians{i},spectra{i},false,ins_init{i}.hamiltonian);
                 tevol = tevol_tmp.allocate_phases(full_times);
             
             final_state_minus_real = state_minus{i};

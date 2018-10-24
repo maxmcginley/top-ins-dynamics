@@ -156,9 +156,9 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
             mat_phs = phsop *  conj(projector) * phsop';
             mat_chi = chiop *  projector * chiop';
 
-            phs = sum(sum(abs(projector + mat_phs)));
-            trs = sum(sum(abs(projector - mat_trs)));
-            chi = sum(sum(abs(projector + mat_chi)));
+            phs = sum(sum(abs(projector + mat_phs)))/numel(projector);
+            trs = sum(sum(abs(projector - mat_trs)))/numel(projector);
+            chi = sum(sum(abs(projector + mat_chi)))/numel(projector);
             
         end
     end

@@ -53,12 +53,22 @@ classdef TimeEvolution_Noise < TimeEvolution
     end
     
     methods (Static)
-        function spectra = generate_poissonians(widths,amplitudes)
+        function spectra = generate_poissonians(widths,amplitudes,varargin)
             assert(numel(widths) == numel(amplitudes),...
                 'Must provide equal numbers of widths and amplitudes');
             spectra = cell(size(widths));
+            if numel(varargin) >= 1
+                cutoffs = varargin{1};
+                assert(numel(widths) == numel(cutoffs) || isempty(cutoffs));
+            else
+                cutoffs = [];
+            end
             for i = 1:numel(widths)
-                spectra{i} = @(x) (amplitudes(i).^2)*(2*widths(i)/pi)*((widths(i).^2 + x.^2).^(-1));
+                if isempty(cutoffs)
+                    spectra{i} = @(x) (amplitudes(i).^2)*(2*widths(i)/pi)*((widths(i).^2 + x.^2).^(-1));
+                else
+                    spectra{i} = @(x) (amplitudes(i).^2).*double(x < cutoffs(i)).*(2*widths(i)/pi).*((widths(i).^2 + x.^2).^(-1));
+                end
             end
         end
         
