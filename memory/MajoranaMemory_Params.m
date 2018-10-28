@@ -55,8 +55,8 @@ classdef MajoranaMemory_Params
                 out_str = struct('maj_params',maj_params);
                 
                 if detailed_save
-                    out_str.final_state_minus = {final_state_minus};
-                    out_str.final_state_plus = {final_state_plus};
+                    out_str.final_state_minus = final_state_minus;
+                    out_str.final_state_plus = final_state_plus;
                 else
                     fids = compute_majorana_fidelities(final_state_minus,final_state_plus);
                     out_str.fidelities = fids;

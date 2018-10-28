@@ -32,32 +32,61 @@ classdef TopologicalInsulator_DoubleKitaev < TopologicalInsulator
             assert(all(size(rho_q) == [2,2]),'qubit must be provided as 2x2 density matrix');
             maj_indices = find(abs(obj.spectrum) < majorana_limit);
             assert(numel(maj_indices) == 4,'Should be 4 Majoranas present');
-            pos_indices = maj_indices(obj.spectrum(maj_indices) > 0);
-            if numel(pos_indices) ~= 2
-                warning('DoubleKitaev: Should be 2 Positive-eigenvalue Majoranas');
-                [~,ind] = sort(obj.spectrum(maj_indices));
-                pos_indices(1:2) = ind(3:4);
-                pos_indices(3:end) = [];
-            end
+            
+            %WARNING - ED of the Hamiltonian will give the fourfold
+            %degenerate Majorana subspace but the 4 eigenvectors might not
+            %be PHS-conjugates. Need to construct the (unique) set of 4
+            %states which are in the subspace and for PHS-pairs on the left
+            %and right chains
+            
+            orbs = obj.orbitals';
+            
+            maj_orbitals = orbs(:,maj_indices);
+            left_weights = sum(abs(maj_orbitals(1:(obj.sites/2),:)).^2);
+            left_inds = maj_indices(left_weights > 0.1);
+            assert(numel(left_inds) == 2,'Should be 2 Majoranas on the left chain');
+            right_inds = maj_indices(left_weights <= 0.1);
+            
+            inds = [reshape(left_inds,1,2); reshape(right_inds,1,2)];
+            
+            pos_indices = [left_inds(1),right_inds(1)];
             assert(numel(pos_indices) == 2);
+            pos_orbs = orbs(:,pos_indices);
+            
+            majs = NaN(size(orbs,1),4);
             
             phsop = TopologicalInsulator_DoubleKitaev.nambu_operator(1,numel(obj.spectrum));
-            pos_orbs = obj.orbitals(pos_indices,:)';
-            sym_orbs = [pos_orbs, phsop * conj(pos_orbs)]; %a_1 a_2 a_1^\dagger a_2^\dagger
             
-            subspace = diag([rho_q(2,2),rho_q(2,2),rho_q(1,1),rho_q(1,1)]);
-            subspace(1,4) = -rho_q(1,2);
-            subspace(2,3) = rho_q(1,2);
-            subspace(3,2) = rho_q(2,1);
-            subspace(4,1) = -rho_q(2,1);
+            for j = 1:2
+                %Writing eig_ED_1 = a * maj_1 + b * maj_2 separately for
+                %each chain
+                diff_sq = orbs(:,inds(j,2))' * phsop * conj(orbs(:,inds(j,1))); %|b^2| - |a^2|
+                prod = -orbs(:,inds(j,2))' * phsop * conj(orbs(:,inds(j,2))); %2 a b
+                modasq = 0.5*(-diff_sq +sqrt(diff_sq.^2 + abs(prod).^2)); %|a|^2
+                modbsq = diff_sq + modasq;
+                b = sqrt(modbsq);
+                a = b*modasq*2/conj(prod);
+
+                majs(:,2*j-1) = conj(a)*orbs(:,inds(j,1)) + b*orbs(:,inds(j,2));
+                majs(:,2*j) = conj(b)*orbs(:,inds(j,1)) - a*orbs(:,inds(j,2));
+            end
             
-            sym_orbs = obj.orbitals(maj_indices,:)';
+           
+            %sym_orbs = [pos_orbs, phsop * conj(pos_orbs)]; %a_1 a_2 a_1^\dagger a_2^\dagger
+            
+            subspace = diag([rho_q(1,1),1-rho_q(1,1),rho_q(2,2),1-rho_q(2,2)]);
+            subspace(1,3) = rho_q(2,1);
+            subspace(3,1) = rho_q(1,2);
+            subspace(2,4) = -rho_q(2,1);
+            subspace(4,2) = -rho_q(1,2);
+            
+            %sym_orbs = obj.orbitals(maj_indices,:)';
             
             diag_mat = diag(double(obj.spectrum < 0));
             diag_mat(maj_indices,maj_indices) = zeros(4);
             %diag_mat = eye(numel(obj.spectrum))*0.5;
             corrmat_edge = obj.orbitals' * diag_mat * obj.orbitals;
-            corrmat_edge = corrmat_edge + sym_orbs * subspace * sym_orbs';
+            corrmat_edge = corrmat_edge + majs * subspace * majs';
         end
     end
     

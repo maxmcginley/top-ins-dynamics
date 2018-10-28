@@ -16,8 +16,8 @@ for t_index = 1:num_vals
 
     for i = 1:num_insulators
         fid_matrix = final_state_minus{i}(:,:,t_index) - final_state_plus{i}(:,:,t_index);
-        fidelities{i}(t_index) = sqrt(trace(fid_matrix * fid_matrix'));
-        %fidelities{i}(t_index) = max(abs(eig(fid_matrix)));
+        %fidelities{i}(t_index) = sqrt(trace(fid_matrix * fid_matrix'));
+        fidelities{i}(t_index) = max(abs(eig(fid_matrix)));
     end
     
 %     %*********NON-LOCALITY*************
