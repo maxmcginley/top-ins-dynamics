@@ -18,35 +18,41 @@ ins_init{1} = TopologicalInsulator_DIII(t,mu_init,del_1,del_2,alpha,sites*4,true
 ins_init{2} = TopologicalInsulator_DoubleKitaev(t,mu_init,del_1,sites*4,true);
 ins_init{3} = TopologicalInsulator_ChiralMaj(alpha,t,del_2,del_1,mu_init,sites*2,true);
 
-mu_location_TRS = [ones(1,mu_patch_size),zeros(1,sites - mu_patch_size)];
-mu_location_Double = [ones(1,mu_patch_size),zeros(1,sites*2 - mu_patch_size)]; %Two copies of the chains
-mu_location_Double_2 = [zeros(1,sites),ones(1,mu_patch_size),zeros(1,sites - mu_patch_size)];
-mu_location_Chiral = [ones(1,mu_patch_size),zeros(1,sites - mu_patch_size)];
+mu_location_TRS = [[ones(1,mu_patch_size),zeros(1,sites - mu_patch_size)];...
+                    [zeros(1,sites - mu_patch_size),ones(1,mu_patch_size)]];
+mu_location_Double = [[ones(1,mu_patch_size),zeros(1,sites*2 - mu_patch_size)];... %Two copies of the chains
+                       [zeros(1,sites),ones(1,mu_patch_size),zeros(1,sites - mu_patch_size)];...
+                       [zeros(1,sites - mu_patch_size),ones(1,mu_patch_size),zeros(1,sites)];...
+                       [zeros(1,sites),zeros(1,sites - mu_patch_size),ones(1,mu_patch_size)]];
+mu_location_Chiral = [[ones(1,mu_patch_size),zeros(1,sites - mu_patch_size)];...
+                    [zeros(1,sites - mu_patch_size),ones(1,mu_patch_size)]];
 
 if maj_params.double_noise
-    n_chan = 4;
+    n_chan = [2,4,2];
+    disp('Running with double noise');
 else
-    n_chan = 2;
+    n_chan = [1,1,1];
 end
 
 %Defines where the final Hamiltonians are
-    hamiltonians{1} = cell(1,2);
-    hamiltonians{2} = cell(1,n_chan); %Independent noise
-    hamiltonians{3} = cell(1,2);
+    hamiltonians{1} = cell(1,n_chan(1));
+    hamiltonians{2} = cell(1,n_chan(2)); %Independent noise
+    hamiltonians{3} = cell(1,n_chan(3));
     
-    hamiltonians{1}{1} = TopologicalInsulator_DIII(0,mu_location_TRS,0,0,0,sites*4,true,false).hamiltonian;
-    hamiltonians{2}{1} = TopologicalInsulator_DoubleKitaev(0,mu_location_Double,0,sites*4,true,false).hamiltonian;
-    hamiltonians{3}{1} = TopologicalInsulator_ChiralMaj(0,0,0,0,mu_location_Chiral,sites*2,true,false).hamiltonian;
-    
-    hamiltonians{1}{2} = TopologicalInsulator_DIII(0,0,0,mu_location_TRS,0,sites*4,true,false).hamiltonian;
-    hamiltonians{2}{2} = TopologicalInsulator_DoubleKitaev(0,0,mu_location_Double,sites*4,true,false).hamiltonian;
-    hamiltonians{3}{2} = TopologicalInsulator_ChiralMaj(0,0,mu_location_Chiral,0,0,sites*2,true,false).hamiltonian;
-    
-    if maj_params.double_noise
-        display('Running with double noise');
-        hamiltonians{2}{3} = TopologicalInsulator_DoubleKitaev(0,mu_location_Double_2,0,sites*4,true,false).hamiltonian;
-        hamiltonians{2}{4} = TopologicalInsulator_DoubleKitaev(0,0,mu_location_Double_2,sites*4,true,false).hamiltonian;
-    end
+for j = 1:(n_chan(1))
+    hamiltonians{1}{2*j-1} = TopologicalInsulator_DIII(0,mu_location_TRS(j,:),0,0,0,sites*4,true,false).hamiltonian;
+    hamiltonians{1}{2*j} = TopologicalInsulator_DIII(0,0,0,mu_location_TRS(j,:),0,sites*4,true,false).hamiltonian;
+end
+
+for j = 1:(n_chan(2))
+    hamiltonians{2}{2*j-1} = TopologicalInsulator_DoubleKitaev(0,mu_location_Double(j,:),0,sites*4,true,false).hamiltonian;
+    hamiltonians{2}{2*j} = TopologicalInsulator_DoubleKitaev(0,0,mu_location_Double(j,:),sites*4,true,false).hamiltonian;
+end
+
+for j = 1:(n_chan(3))
+    hamiltonians{3}{2*j-1} = TopologicalInsulator_ChiralMaj(0,0,0,0,mu_location_Chiral(j,:),sites*2,true,false).hamiltonian;
+    hamiltonians{3}{2*j} = TopologicalInsulator_ChiralMaj(0,0,mu_location_Chiral(j,:),0,0,sites*2,true,false).hamiltonian;
+end
     
     if maj_params.use_cutoff
         cutoff = maj_params.cutoffs;

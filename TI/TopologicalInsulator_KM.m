@@ -157,7 +157,8 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
             
             leftmargin = 15;
             bottommargin = 15;
-            gap = 12;
+            topmargin = 14;
+            gap = 14;
             max_ent_km = 0.26;
             max_ent_hal = 0.52;
             max_k = max(kvals);
@@ -174,10 +175,14 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
             col1 = [     0    0.4470    0.7410];
             col2 = [0.8500    0.3250    0.0980];
             
+            ratio = 3;
+            col1A = 1 - (1 - col1)/ratio;
+            col2A = 1 - (1 - col2)/ratio;
+            
             fontsize = 8;
             
             plotwidth = (width - gap - leftmargin)/2;
-            plotheight = (height - bottommargin - gap)/2;
+            plotheight = (height - bottommargin - topmargin - gap)/2;
             
             
             ax(1) = axes('units','points','position',[leftmargin,bottommargin + plotheight + gap,plotwidth,plotheight]);
@@ -189,11 +194,7 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
             
             
             
-            plot(ax(1),kvals,ent_func(spec_init_hal([i1_hal,i2_hal],:)),'color',col1);
-            plot(ax(2),kvals,ent_func(spec_final_hal([i3_hal,i4_hal],:)),'color',col2);
             
-            plot(ax(3),kvals,ent_func([spc1_km;spc2_km]),'color',col1);
-            plot(ax(4),kvals,ent_func(spec_final_km([i3_km,i4_km],:)),'color',col2);
             
             for j = 1:4
                 hold(ax(j),'on');
@@ -201,6 +202,20 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
                     'Color','black','LineWidth',0.25);
                 plot(ax(j),[-x_limit*0.29,-x_limit],[0.5,0.5],'--',...
                     'Color','black','LineWidth',0.25);
+            end
+            
+            plot(ax(1),kvals,ent_func(spec_init_hal),'color',col1A);
+            plot(ax(2),kvals,ent_func(spec_final_hal),'color',col2A);
+            plot(ax(3),kvals,ent_func(spec_init_km),'color',col1A);
+            plot(ax(4),kvals,ent_func(spec_final_km),'color',col2A);
+            
+            plot(ax(1),kvals,ent_func(spec_init_hal([i1_hal,i2_hal],:)),'color',col1);
+            plot(ax(2),kvals,ent_func(spec_final_hal([i3_hal,i4_hal],:)),'color',col2);
+            
+            plot(ax(3),kvals,ent_func([spc1_km;spc2_km]),'color',col1);
+            plot(ax(4),kvals,ent_func(spec_final_km([i3_km,i4_km],:)),'color',col2);
+            
+            for j = 1:4
                 hold(ax(j),'off');
             end
             
@@ -301,20 +316,29 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
 %                 'Linestyle','none','interpreter','latex','Position',[b_arrow_center - (b_label_width/2),0.08*bottommargin/height,b_label_width,0.65*bottommargin/height],...
 %                 'HorizontalAlignment','center','fontsize',fontsize);
 %             lab = ylabel('Entanglement energy $\epsilon_i$','interpreter','latex');
-            t_hal = text(ax(1),-0.04,0.5,'Haldane','HorizontalAlignment','center','Rotation',90,'Units','normalized','Interpreter','latex');
-            t_km = text(ax(3),-0.04,0.5,'Kane-Mele','HorizontalAlignment','center','Rotation',90,'Units','normalized','Interpreter','latex');
+            t_hal = text(ax(1),-0.075,0.5,'Haldane','HorizontalAlignment','center','Rotation',90,'Units','normalized','Interpreter','latex');
+            t_km = text(ax(3),-0.075,0.5,'Kane-Mele','HorizontalAlignment','center','Rotation',90,'Units','normalized','Interpreter','latex');
+            t_1 = text(ax(1),0.5,1 + 0.5*topmargin/plotheight,'$t = 0$','HorizontalAlignment','center','Units','normalized','Interpreter','latex');
+            t_2 = text(ax(2),0.5,1 + 0.5*topmargin/plotheight,'$t = 2J^{-1}_1$','HorizontalAlignment','center','Units','normalized','Interpreter','latex');
 %             lab.Rotation = 90;
 %             annotation('doublearrow',[b_arrow_center - (b_label_width/2),b_arrow_center + (b_label_width/2)],[0.02,0.02],...
 %                 'Head1Length',4,'Head2Length',4,'Head1Width',3,'Head2Width',3);
 %             annotation('doublearrow',[l_label_space,l_label_space],[l_arrow_center - (l_arrow_width/2),l_arrow_center + (l_arrow_width/2)],...
 %                 'Head1Length',4,'Head2Length',4,'Head1Width',3,'Head2Width',3);
             
-            annotation('textbox','String','$t=0$','FitBoxToText','on',...
-                'Linestyle','none','interpreter','latex','Position',[(leftmargin + plotwidth/2)/width - t_label_width/2,0.5*bottommargin/height,t_label_width,0.5*bottommargin/height],...
-                'HorizontalAlignment','center','fontsize',fontsize);
-            annotation('textbox','String','$t=2J$','FitBoxToText','on',...
-                'Linestyle','none','interpreter','latex','Position',[1 - (plotwidth/(2*width)) - t_label_width/2,0.5*bottommargin/height,t_label_width,0.5*bottommargin/height],...
-                'HorizontalAlignment','center','fontsize',fontsize);
+%             annotation('textbox','String','$t=0$','FitBoxToText','on',...
+%                 'Linestyle','none','interpreter','latex','Position',[(leftmargin + plotwidth/2)/width - t_label_width/2,0.5*bottommargin/height,t_label_width,0.5*bottommargin/height],...
+%                 'HorizontalAlignment','center','fontsize',fontsize);
+%             annotation('textbox','String','$t=2J$','FitBoxToText','on',...
+%                 'Linestyle','none','interpreter','latex','Position',[1 - (plotwidth/(2*width)) - t_label_width/2,0.5*bottommargin/height,t_label_width,0.5*bottommargin/height],...
+%                 'HorizontalAlignment','center','fontsize',fontsize);
+
+            gridspace = 0.01;
+            gridcol = [1,1,1];
+%             annotation('line',[0, 1],repmat(1+ gridspace - (topmargin/height),1,2),'LineWidth',0.25,'Color',gridcol);
+%             annotation('line',[0, 1],repmat(1 - (topmargin + plotheight + gap)/height + gridspace,1,2),'LineWidth',0.25,'Color',gridcol);
+%             annotation('line',repmat((leftmargin)/width - gridspace,1,2),[0.03, 1],'LineWidth',0.25,'Color',gridcol);
+%             annotation('line',repmat((leftmargin + plotwidth + (gap/2))/width,1,2),[0.03, 1],'LineWidth',0.25,'Color',gridcol);
         end
         
     end
