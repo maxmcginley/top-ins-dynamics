@@ -133,9 +133,10 @@ classdef (Abstract) TopologicalInsulator
             for k_index = 1:numel(k_vals)
                 k = k_vals(k_index);
                 ham_k = obj.BL_k_hamiltonian(k);
+                dim = size(ham_k,1);
                 [evec,d] = eig(ham_k);
                 eval = real(diag(d)); occs = eval < 0.0;
-                if any(occs ~= [1;1;0;0])
+                if any(occs ~= [ones(dim/2,1);zeros(dim/2,1)])
                     error('OCCS');
                 end
                 sps{k_index} = evec(:,occs);
@@ -155,9 +156,14 @@ classdef (Abstract) TopologicalInsulator
         end
         
         function wilson_loop = BL_wilson_loops(spins)
-            cell_size = size(spins,1);
-            occ_bands = size(spins,2);
-            num_ks = size(spins,3)
+            if(iscell(spins))
+                s_cell = true;
+                num_ks = numel(spins);
+            else
+                s_cell = false;
+                num_ks = size(spins,3);
+            end
+            
             els = zeros(1,num_ks);
             for j = 1:num_ks
                 if j ~= num_ks
@@ -165,7 +171,11 @@ classdef (Abstract) TopologicalInsulator
                 else
                     next = 1;
                 end
-                els(j) = det(spins(:,:,j)' * spins(:,:,next));
+                if s_cell
+                    els(j) = det(spins{j}' * spins{next});
+                else
+                    els(j) = det(spins(:,:,j)' * spins(:,:,next));
+                end
             end
             wilson_loop = mod(sum(angle(els))/(2*pi),1);
         end

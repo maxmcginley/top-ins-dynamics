@@ -24,22 +24,24 @@ rightcol = [1,1,1];
 set(ax1,'FontSize',8);
 set(ax1,'FontName','Times');
 
+time_scale = 1.e-3;
+
 hold(ax1,'on');
-h(1) = plot(ax1,times,fidelities{1}/2,'DisplayName','(17a) -- DIII');
-h(2) = plot(ax1,times,fidelities{2}/2,'DisplayName','(17b) -- BDI $\nu = 1$');
-h(3) = plot(ax1,times,fidelities{3}/2,'DisplayName','(17c) -- BDI $\nu = 2$');
+h(1) = plot(ax1,times*time_scale,fidelities{1},'DisplayName','(17a) -- DIII');
+h(2) = plot(ax1,times*time_scale,fidelities{2},'DisplayName','(17b) -- BDI $\nu = 1$');
+h(3) = plot(ax1,times*time_scale,fidelities{3},'DisplayName','(17c) -- BDI $\nu = 2$');
 l = legend(h,'Location','SouthEast');
 l.Interpreter = 'latex';
 
 set(ax1,'TickLabelInterpreter','latex');
-xlabel(ax1,'Time $t$ $[$Units of $J^{-1}]$','interpreter','latex');
+xlabel(ax1,'Time $t$ $[$Units of $J^{-1} \times 10^3]$','interpreter','latex');
 ylabel(ax1,'Fidelity $\| \Gamma(\rho^+) - \Gamma(\rho^-)\|/2$','interpreter','latex');
 
 
 
 %set(ax1,'YLim',[floor(min(output.fidelities{1}/2)*10)/10,1]);
-set(ax1,'YLim',[-inf,1]);
-set(ax1,'XLim',[0,max(times)]);
+set(ax1,'YLim',[0,1.1]);
+set(ax1,'XLim',[0,max(times)*time_scale]);
 
 set(ax1,'Layer','top')
 

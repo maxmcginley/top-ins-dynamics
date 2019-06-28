@@ -59,16 +59,13 @@ end
     else
         cutoff = [];
     end
-        
-spectra{1} = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,maj_params.spec_amps,cutoff);
-if maj_params.double_noise
-    spectra{2} = TimeEvolution_Noise.generate_poissonians(repmat(maj_params.spec_freq_widths,1,2),...
-        repmat(maj_params.spec_amps,1,2),repmat(cutoff,1,2));
-else
-    spectra{2} = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,maj_params.spec_amps,cutoff);
+
+for j = 1:3
+spectra{j} = TimeEvolution_Noise.generate_poissonians(repmat(maj_params.spec_freq_widths,1,n_chan(j)),...
+                                                    repmat(maj_params.spec_amps,1,n_chan(j)),...
+                                                    repmat(cutoff,1,n_chan(j)));
 end
-spectra{3} = TimeEvolution_Noise.generate_poissonians(maj_params.spec_freq_widths,maj_params.spec_amps,cutoff);
-    
+ 
 maj_params.insulator_init = ins_init;
 maj_params.hamiltonians = hamiltonians;
 maj_params.spectra = spectra;
