@@ -8,6 +8,8 @@ classdef TimeEvolution_Noise < TimeEvolution
         frequencies
         num_channels
         static_ham
+        static_eval
+        static_evec
         signal
         times
     end
@@ -21,21 +23,34 @@ classdef TimeEvolution_Noise < TimeEvolution
             obj.num_channels = numel(hams);
             obj.hams = hams;
             obj.static_ham = static_ham;
+            [obj.static_evec,eval] = eig(static_ham);
+            obj.static_eval = diag(eval);
             fqs = TimeEvolution_Noise.generate_frequencies(obj.timestep,obj.num_steps);
             [obj.frequencies, obj.fourier_amplitudes] = TimeEvolution_Noise.randomize_amplitudes(...
                     fqs,spectra,rand_phase);
         end
         
-        function ham = calculate_hamiltonian(obj,t_step,~)
+        function unit = calculate_static_unitary(obj,time)
+            ph_diag = exp(-1i * time * obj.static_eval);
+            unit = obj.static_evec * bsxfun(@times,obj.static_evec',ph_diag);
+        end
+        
+        function ham = calculate_hamiltonian(obj,t_step,interaction_pic)
 %             if isempty(real_number)
 %                 error('Realization number not given');
 %             end
-            ham = obj.static_ham;
+            ham = zeros(size(obj.static_ham));
             
             for i = 1:obj.num_channels
                 %signal_i = imag(obj.signal(i,mod(t_step,size(obj.signal,2))+1));
-                signal_i = sum(imag(exp(1i * t_step * obj.timestep * obj.frequencies) .* obj.fourier_amplitudes));
+                signal_i = sum(imag(exp(1i * double(t_step) * obj.timestep * obj.frequencies) .* obj.fourier_amplitudes(i,:)));
                 ham = ham + signal_i*obj.hams{i};
+            end
+            if numel(interaction_pic) == 1
+                unit = obj.calculate_static_unitary(double(interaction_pic)*obj.timestep);
+                ham = unit * ham * unit';
+            else
+                ham = ham + obj.static_ham;
             end
         end
         

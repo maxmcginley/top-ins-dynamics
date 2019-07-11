@@ -80,6 +80,10 @@ test_symmetries(state_plus);
                 final_state_plus_rs{dis_index,i}(:,:,t_index) = (final_state_plus_real);
                
             end
+            
+            es = eig(final_state_minus_real);
+            display(['Entropy of final state is ',num2str(-sum(log(es).*es))]);
+            
         end
         
     end

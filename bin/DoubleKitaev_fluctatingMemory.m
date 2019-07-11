@@ -16,7 +16,11 @@ addpath(fullfile(pwd,'..','TI'));
 addpath(fullfile(pwd,'..','TE'));
 addpath(fullfile(pwd,'..','memory'));
 
-file_directory = fullfile('/','rscratch','mm2025','data','majorana');
+%TCM Computer
+%file_directory = fullfile('/','rscratch','mm2025','data','majorana');
+%Local
+file_directory = '.';
+
 filename = fullfile(file_directory,'majorana_memory_out.mat');
 
 detailed_save = false;
@@ -31,12 +35,12 @@ else
     run(fullfile(file_directory,'memory_input.m'));
 end
 
-RUN = true;
+RUN = false;
 SAVE = true;
 %*********************************************
 
 if RUN
-    profile on;
+    
     
     while true
         reply = input('Running new simulation... Previous data saved?','s');
@@ -49,6 +53,9 @@ if RUN
             disp('Unrecognised input\n');
         end
     end
+    
+    profile off;
+    profile on;
     
     if VARY_AMPLITUDE
         params_in = cell(size(amplitudes,1),1);
