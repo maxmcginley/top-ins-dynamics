@@ -21,13 +21,9 @@ classdef TimeEvolution_Noise < TimeEvolution
             obj.num_channels = numel(hams);
             obj.hams = hams;
             obj.static_ham = static_ham;
-            obj.frequencies = TimeEvolution_Noise.generate_frequencies(obj.timestep,obj.num_steps);
-            obj.fourier_amplitudes = zeros(numel(hams),numel(obj.frequencies));
-            for i = 1:numel(spectra)
-                amps_i = TimeEvolution_Noise.randomize_amplitudes(...
-                    obj.frequencies,spectra{i},rand_phase);
-                obj.fourier_amplitudes(i,:) = reshape(amps_i,[1,numel(amps_i)]);
-            end
+            fqs = TimeEvolution_Noise.generate_frequencies(obj.timestep,obj.num_steps);
+            [obj.frequencies, obj.fourier_amplitudes] = TimeEvolution_Noise.randomize_amplitudes(...
+                    fqs,spectra,rand_phase);
         end
         
         function ham = calculate_hamiltonian(obj,t_step,~)
@@ -35,8 +31,10 @@ classdef TimeEvolution_Noise < TimeEvolution
 %                 error('Realization number not given');
 %             end
             ham = obj.static_ham;
+            
             for i = 1:obj.num_channels
-                signal_i = imag(obj.signal(i,mod(t_step,size(obj.signal,2))+1));
+                %signal_i = imag(obj.signal(i,mod(t_step,size(obj.signal,2))+1));
+                signal_i = sum(imag(exp(1i * t_step * obj.timestep * obj.frequencies) .* obj.fourier_amplitudes));
                 ham = ham + signal_i*obj.hams{i};
             end
         end
@@ -53,6 +51,16 @@ classdef TimeEvolution_Noise < TimeEvolution
     end
     
     methods (Static)
+        
+        function amp = cutoff_function(x,cut)
+            amp = exp(-(1 + (x.^2 / (cut^2)).^(-4)));
+        end
+        
+        function amp = spec_function(x,wid)
+            %amp = (2*wid/pi)*((wid.^2 + x.^2).^(-1));
+            amp = (1/(2*wid)) * exp(-2*(wid^(-1))*abs(x));
+        end
+        
         function spectra = generate_poissonians(widths,amplitudes,varargin)
             assert(numel(widths) == numel(amplitudes),...
                 'Must provide equal numbers of widths and amplitudes');
@@ -65,9 +73,10 @@ classdef TimeEvolution_Noise < TimeEvolution
             end
             for i = 1:numel(widths)
                 if isempty(cutoffs)
-                    spectra{i} = @(x) (amplitudes(i).^2)*(2*widths(i)/pi)*((widths(i).^2 + x.^2).^(-1));
+                    spectra{i} = @(x) (amplitudes(i).^2).*TimeEvolution_Noise.spec_function(x,widths(i));
                 else
-                    spectra{i} = @(x) (amplitudes(i).^2).*double(x < cutoffs(i)).*(2*widths(i)/pi).*((widths(i).^2 + x.^2).^(-1));
+                    spectra{i} = @(x) (amplitudes(i).^2).*TimeEvolution_Noise.cutoff_function(x,cutoffs(i)) ... 
+                        .* TimeEvolution_Noise.spec_function(x,widths(i));
                 end
             end
         end
@@ -77,15 +86,28 @@ classdef TimeEvolution_Noise < TimeEvolution
             fs = double(0:(num_steps - 1)) * (pi/(timestep*double(num_steps)));
         end
         
-        function amps = randomize_amplitudes(frequencies,spectrum,rand_phase)
-            widths = sqrt(spectrum(frequencies));
-            widths(1) = 0;
-            amps = randn([numel(frequencies),1]) .* ...
-                reshape(widths,[numel(widths),1]) * (sqrt(2*max(frequencies)/numel(frequencies)));
+        function [fs,amps] = randomize_amplitudes(frequencies,spectra,rand_phase)
+            amps = zeros(numel(spectra),numel(frequencies));
+            fs = reshape(frequencies,1,numel(frequencies));
+            
+            for i = 1:numel(spectra)
+                widths = sqrt(spectra{i}(frequencies));
+                widths(1) = 0;
+                amps(i,:) = randn([numel(frequencies),1]) .* reshape(widths,[numel(widths),1]);
+            end
+            
+            %If implementing an amplitude cutoff
+            cut = 1.e-9;
+            disc = (max(abs(amps),[],1) < cut);
+            amps(:,disc) = [];
+            fs(disc) = [];
+            %******************************
+            
             if rand_phase
                 phases = exp(1i * rand(size(amps)) * 2 * pi);
                 amps = amps .* phases;
             end
+            
         end
     end
 end

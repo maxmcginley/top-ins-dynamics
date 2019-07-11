@@ -21,7 +21,7 @@ filename = fullfile(file_directory,'majorana_memory_out.mat');
 
 detailed_save = false;
 
-VARY_AMPLITUDE = false;
+VARY_AMPLITUDE = true;
 TESTING = false;
 
 %******************INPUT DATA*******************
@@ -31,11 +31,13 @@ else
     run(fullfile(file_directory,'memory_input.m'));
 end
 
-RUN = false;
+RUN = true;
 SAVE = true;
 %*********************************************
 
 if RUN
+    profile on;
+    
     while true
         reply = input('Running new simulation... Previous data saved?','s');
         if strcmp(reply,'q') || strcmp(reply,'quit')
@@ -62,6 +64,9 @@ if RUN
     end
 
     outputs = MajoranaMemory_Params.run_jobs(params_in,detailed_save);
+    
+    profile off;
+    profile viewer;
 end
 %% Saving data
 
