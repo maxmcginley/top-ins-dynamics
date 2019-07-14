@@ -2,10 +2,12 @@ function fidelities = compute_majorana_fidelities(final_state_minus,final_state_
 
 num_insulators = numel(final_state_minus);
 num_vals = size(final_state_minus{1},3);
+norms = zeros(1,num_insulators);
 
 fidelities = cell(1,num_insulators);
 for i = 1:num_insulators
     fidelities{i} = zeros(1,num_vals);
+    norms(i) = trace(final_state_minus{i}(:,:,1));
 end
 
 for t_index = 1:num_vals
@@ -15,7 +17,9 @@ for t_index = 1:num_vals
     
 
     for i = 1:num_insulators
-        fid_matrix = final_state_minus{i}(:,:,t_index) - final_state_plus{i}(:,:,t_index);
+        norm_mat_1 = final_state_minus{i}(:,:,t_index); norm_mat_1 = norm_mat_1 * (norms(i)/trace(norm_mat_1));
+        norm_mat_2 = final_state_plus{i}(:,:,t_index); norm_mat_2 = norm_mat_2 * (norms(i)/trace(norm_mat_2));
+        fid_matrix = norm_mat_1 - norm_mat_2;
         %fidelities{i}(t_index) = sqrt(trace(fid_matrix * fid_matrix'));
         fidelities{i}(t_index) = max(abs(eig(fid_matrix)));
     end

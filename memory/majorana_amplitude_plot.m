@@ -26,7 +26,9 @@ for j = 1:num_outputs
     regs = reg_data(fit_indices,:) \ y_data(fit_indices);
     decay_consts(j) = regs(2);
     
-    sat_vals(j) = 0.5*fidelities{2}(end);
+    if output.maj_params.num_insulators >= 2
+        sat_vals(j) = 0.5*fidelities{2}(end);
+    end
     
     amps(j) = output.maj_params.spec_amps(1);
     
@@ -39,16 +41,20 @@ height = 150;
 
 pos = [300,200,width,height];
 
+figure('Name','Memory decay','Units','points','Position',pos);
+plot(times,outputs{end}.fidelities{3});
+
 fig_handle = figure('Name','Amplitude scaling','Units','points','Position',pos);
 hold on;
 plot(amps,decay_consts);
+set(gca,'XScale','log');
+set(gca,'YScale','log');
+if output.maj_params.num_insulators >= 2
 yyaxis right;
 plot(amps,sat_vals);
-hold off;
-
-set(gca,'XScale','log');
 yyaxis left;
-set(gca,'YScale','log');
+end
+hold off;
 
 reg_data_decay = [ones(numel(amps),1), reshape(log(amps),numel(amps),1)];
 y_data_decay = reshape(log(decay_consts),numel(decay_consts),1);

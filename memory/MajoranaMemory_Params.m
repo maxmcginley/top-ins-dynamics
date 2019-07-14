@@ -11,7 +11,7 @@ classdef MajoranaMemory_Params
         hamiltonians cell = {}
         spectra cell = {}
         reals(1,1) uint32
-        num_insulators(1,1) uint32
+        num_insulators(1,1) uint32 = 0
         majorana_limit(1,1) double = 0.05
         subspace_plus(2,2) double = 0.5*ones(2,2)
         subspace_minus(2,2) double = 0.5*[[1,-1];[-1,1]]

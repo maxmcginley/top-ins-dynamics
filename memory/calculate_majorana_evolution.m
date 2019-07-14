@@ -13,7 +13,7 @@ final_state_plus_rs = cell(maj_params.reals,maj_params.num_insulators);
 
 
 for i = 1:maj_params.num_insulators
-    display(maj_params.insulator_init{i}.spectrum)
+    display(['Min energy is ',num2str(min(abs(maj_params.insulator_init{i}.spectrum)))]);
     
     state_minus{i} = maj_params.insulator_init{i}.coherent_majorana_qubit(maj_params.majorana_limit,maj_params.subspace_plus);
     state_plus{i} = maj_params.insulator_init{i}.coherent_majorana_qubit(maj_params.majorana_limit,maj_params.subspace_minus);
@@ -23,7 +23,7 @@ for i = 1:maj_params.num_insulators
     end
 end
 
-test_symmetries(state_plus);
+test_symmetries(state_plus, maj_params.num_insulators);
 
 
 
@@ -56,11 +56,13 @@ test_symmetries(state_plus);
         for i = 1:num_ins
             
             tevol_tmp = TimeEvolution_Noise(timestep,num_steps,max_exp,...
-            hamiltonians{i},spectra{i},false,ins_init{i}.hamiltonian);
+            hamiltonians{i},spectra{i},false,ins_init{i}.hamiltonian,true);
                 tevol = tevol_tmp.allocate_phases(full_times);
             
-            final_state_minus_real = state_minus{i};
-            final_state_plus_real = state_plus{i};
+            
+                
+            final_state_minus_real = tevol.static_evec' * state_minus{i} * tevol.static_evec;
+            final_state_plus_real = tevol.static_evec' * state_plus{i} * tevol.static_evec;
             
 %             final_state_minus(dis_index,i,:,:,1) = (final_state_minus_real);
 %             final_state_plus(dis_index,i,:,:,1) = (final_state_plus_real);
