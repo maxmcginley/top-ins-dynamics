@@ -46,16 +46,16 @@ classdef (Abstract) TimeEvolution
 %                 inc3 = ev_mid*(curr_state + inc2*(1/2))*ev_mid' - curr_state;
 %                 inc4 = ev_next*(curr_state + inc3)*ev_next' - curr_state;
 
-                inc1 = 1i*obj.timestep*(ham * curr_state); inc1 = inc1 + inc1';
-                inc2 = 1i*obj.timestep*(ham_mid * (curr_state + 0.5*inc1)); inc2 = inc2 + inc2';
-                inc3 = 1i*obj.timestep*(ham_mid * (curr_state + 0.5*inc2)); inc3 = inc3 + inc3';
-                inc4 = 1i*obj.timestep*(ham_next * (curr_state + inc3)); inc4 = inc4 + inc4';
+                inc1 = -2i*obj.timestep*(ham * curr_state); inc1 = inc1 + inc1';
+                inc2 = -2i*obj.timestep*(ham_mid * (curr_state + 0.5*inc1)); inc2 = inc2 + inc2';
+                inc3 = -2i*obj.timestep*(ham_mid * (curr_state + 0.5*inc2)); inc3 = inc3 + inc3';
+                inc4 = -2i*obj.timestep*(ham_next * (curr_state + inc3)); inc4 = inc4 + inc4';
                 curr_state = curr_state + (inc1 + inc4 + 2*(inc3 + inc2))/6;
                 ham = ham_next;
                 %ev = ev_next;
             end
             unit = obj.calculate_static_unitary(obj.timestep * double(num_steps));
-            state_out = unit' * curr_state * unit;
+            state_out = unit * curr_state * unit';
         end
     end
     

@@ -13,10 +13,11 @@ classdef TimeEvolution_Noise < TimeEvolution
         static_basis
         signal
         times
+        adiabatic_rate
     end
     
     methods
-        function obj = TimeEvolution_Noise(timestep,num_steps,max_exp,hams,spectra,rand_phase,static_ham,static_basis)
+        function obj = TimeEvolution_Noise(timestep,num_steps,max_exp,hams,spectra,rand_phase,static_ham,static_basis,adiabatic_rate,DEBUG_deterministic)
             obj@TimeEvolution(timestep,num_steps,max_exp);
             assert(iscell(hams)); assert(iscell(spectra));
             assert(numel(hams) == numel(spectra),...
@@ -26,6 +27,7 @@ classdef TimeEvolution_Noise < TimeEvolution
             [obj.static_evec,eval] = eig(static_ham);
             obj.static_eval = diag(eval);
             obj.static_basis = static_basis;
+            obj.adiabatic_rate = adiabatic_rate;
             if static_basis
                 obj.hams = cell(size(hams));
                 for j = 1:numel(hams)
@@ -36,7 +38,7 @@ classdef TimeEvolution_Noise < TimeEvolution
             end
             fqs = TimeEvolution_Noise.generate_frequencies(obj.timestep,obj.num_steps);
             [obj.frequencies, obj.fourier_amplitudes] = TimeEvolution_Noise.randomize_amplitudes(...
-                    fqs,spectra,rand_phase);
+                    fqs,spectra,rand_phase,DEBUG_deterministic);
         end
         
         function unit = calculate_static_unitary(obj,time)
@@ -57,16 +59,21 @@ classdef TimeEvolution_Noise < TimeEvolution
 %                 error('Realization number not given');
 %             end
             ham = zeros(size(obj.static_ham));
+            if obj.adiabatic_rate <= 0
+                ad_sig = 1;
+            else
+                ad_sig = 1 - exp(-(double(t_step) * obj.timestep * obj.adiabatic_rate).^2);
+            end
             
             for i = 1:obj.num_channels
                 %signal_i = imag(obj.signal(i,mod(t_step,size(obj.signal,2))+1));
                 signal_i = sum(imag(exp(1i * double(t_step) * obj.timestep * obj.frequencies) .* obj.fourier_amplitudes(i,:)));
-                ham = ham + signal_i*obj.hams{i};
+                ham = ham + ad_sig*signal_i*obj.hams{i};
             end
             if obj.static_basis
                 if numel(interaction_pic) == 1
                     ph = obj.calculate_static_phases(double(interaction_pic)*obj.timestep);
-                    ham = (ph * ph') .* ham;
+                    ham = (conj(ph) * ph.') .* ham;
                 else
                     ham = ham + diag(obj.static_eval);
                 end
@@ -94,13 +101,22 @@ classdef TimeEvolution_Noise < TimeEvolution
     methods (Static)
         
         function amp = cutoff_function(x,cut)
-            amp = exp(-(1 + (x.^2 / (cut^2)).^(-4)));
+            if x < 0
+                amp = ones(size(x));
+            else
+                amp = (1 + exp(x - cut)).^(-1);
+            end
         end
         
         %NORMALISE TO f(0) = 1
         function amp = spec_function(x,wid)
             %amp = (2*wid/pi)*((wid.^2 + x.^2).^(-1));
-            amp =  exp(-2*(wid^(-1))*abs(x));
+            %amp =  exp(-2*(wid^(-1))*abs(x));
+            if x < 0
+                amp = ones(size(x));
+            else
+                amp = (x/wid).^2;
+            end
         end
         
         function spectra = generate_poissonians(widths,amplitudes,varargin)
@@ -117,8 +133,10 @@ classdef TimeEvolution_Noise < TimeEvolution
                 if isempty(cutoffs)
                     spectra{i} = @(x) (amplitudes(i).^2).*TimeEvolution_Noise.spec_function(x,widths(i));
                 else
-                    spectra{i} = @(x) (amplitudes(i).^2).*TimeEvolution_Noise.cutoff_function(x,cutoffs(i)) ... 
-                        .* TimeEvolution_Noise.spec_function(x,widths(i));
+                    %Ohmic: \omega * (1 + e^((\omega - \omega_0)/\Gamma))
+                    %where \omega_0 is the width and \Gamma is a cutoff
+                    spectra{i} = @(x) (amplitudes(i).^2).*TimeEvolution_Noise.cutoff_function(x/cutoffs(i),widths(i)/cutoffs(i)) ... 
+                        .* TimeEvolution_Noise.spec_function(x,cutoffs(i));
                 end
             end
         end
@@ -126,17 +144,26 @@ classdef TimeEvolution_Noise < TimeEvolution
         %Angular frequencies (times 2 pi)
         function fs = generate_frequencies(timestep,num_steps)
             fs = double(0:(num_steps - 1)) * (pi/(timestep*double(num_steps)));
-            fs = fs/16;
+            fs = fs/50;
         end
         
-        function [fs,amps] = randomize_amplitudes(frequencies,spectra,rand_phase)
+        function [fs,amps] = randomize_amplitudes(frequencies,spectra,rand_phase,DEBUG_deterministic)
+            if DEBUG_deterministic
+                fs = 0;
+                amps = zeros(numel(spectra),1);
+                for i = 1:numel(spectra)
+                    amps(i,:) = 1i*sqrt(spectra{i}(0));
+                end
+                return;
+            end
+            
             amps = zeros(numel(spectra),numel(frequencies));
             fs = reshape(frequencies,1,numel(frequencies));
             
             for i = 1:numel(spectra)
                 widths = sqrt(spectra{i}(frequencies));
-                norm = sqrt(sum(widths.^2));
-                widths = widths * (widths(1) / norm);
+                norm = sum(widths.^2);
+                widths = widths * sqrt(spectra{i}(-1) / norm);
                 widths(1) = 0;
                 amps(i,:) = randn([numel(frequencies),1]) .* reshape(widths,[numel(widths),1]);
             end

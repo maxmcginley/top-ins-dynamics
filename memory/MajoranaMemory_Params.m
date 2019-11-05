@@ -16,12 +16,14 @@ classdef MajoranaMemory_Params
         subspace_plus(2,2) double = 0.5*ones(2,2)
         subspace_minus(2,2) double = 0.5*[[1,-1];[-1,1]]
         spec_freq_widths(1,:) double
+        adiabatic_rate double
         spec_amps(1,:) double
         double_noise = false
         system_params
         run_parallel = false
         use_cutoff = false
         cutoffs
+        rand_phase = true
     end
     
     methods

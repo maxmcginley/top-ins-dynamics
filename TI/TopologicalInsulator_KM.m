@@ -106,8 +106,11 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
         
         function fig_handle = entanglement_plot(kvals,spec_init_hal,spec_final_hal,spec_init_km,spec_final_km)
             width = 246; height = 200;
+            set(0,'DefaultAxesColor','none')
             fig_handle = figure('Name','Haldane and Kane Mele Entanglement Spectrum','Units','points',...
                 'position',[300,200,width,height]);
+            
+            set(gcf,'color','none');
             
             pos_1_km = spec_init_km(:,1) > 0; fp1 = find(pos_1_km); fp2 = find(~pos_1_km);
             pos_2_km = spec_final_km(:,1) > 0; fp3 = find(pos_2_km); fp4 = find(~pos_2_km);
@@ -202,6 +205,7 @@ classdef TopologicalInsulator_KM < TopologicalInsulator
                     'Color','black','LineWidth',0.25);
                 plot(ax(j),[-x_limit*0.29,-x_limit],[0.5,0.5],'--',...
                     'Color','black','LineWidth',0.25);
+                set(ax(j),'color','white');
             end
             
             plot(ax(1),kvals,ent_func(spec_init_hal),'color',col1A);

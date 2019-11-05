@@ -17,8 +17,8 @@ for t_index = 1:num_vals
     
 
     for i = 1:num_insulators
-        norm_mat_1 = final_state_minus{i}(:,:,t_index); norm_mat_1 = norm_mat_1 * (norms(i)/trace(norm_mat_1));
-        norm_mat_2 = final_state_plus{i}(:,:,t_index); norm_mat_2 = norm_mat_2 * (norms(i)/trace(norm_mat_2));
+        norm_mat_1 = final_state_minus{i}(:,:,t_index); %norm_mat_1 = norm_mat_1 * (norms(i)/trace(norm_mat_1));
+        norm_mat_2 = final_state_plus{i}(:,:,t_index); %norm_mat_2 = norm_mat_2 * (norms(i)/trace(norm_mat_2));
         fid_matrix = norm_mat_1 - norm_mat_2;
         %fidelities{i}(t_index) = sqrt(trace(fid_matrix * fid_matrix'));
         fidelities{i}(t_index) = max(abs(eig(fid_matrix)));

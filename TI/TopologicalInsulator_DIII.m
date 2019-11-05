@@ -41,7 +41,7 @@ classdef TopologicalInsulator_DIII < TopologicalInsulator
             
             phsop = TopologicalInsulator_DIII.nambu_operator(1,4,numel(obj.spectrum));
             pos_orbs = obj.orbitals(pos_indices,:)';
-            sym_orbs = [pos_orbs, phsop * conj(pos_orbs)]; %a_1 a_2 a_1^\dagger a_2^\dagger
+            sym_orbs = [pos_orbs, phsop * conj(pos_orbs)]; %a_1 a_2 a_1^\dagger a_2^\dagger 
             
             subspace = diag([rho_q(2,2),rho_q(2,2),rho_q(1,1),rho_q(1,1)]);
             subspace(1,4) = -rho_q(1,2);

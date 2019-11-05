@@ -21,11 +21,20 @@ for i = 1:maj_params.num_insulators
         final_state_minus_rs{dis_index,i} = NaN([size(state_minus{i}),numel(data_times)]);
         final_state_plus_rs{dis_index,i} = NaN([size(state_plus{i}),numel(data_times)]);
     end
+    
+    
 end
 
 test_symmetries(state_plus, maj_params.num_insulators);
 
-
+%TENTATIVE - explicitly set majornana mode energies to zero
+corr_spec = maj_params.insulator_init{1}.spectrum;
+corr_spec(abs(corr_spec) < 1.e-6) = 0;
+maj_params.insulator_init{1}.spectrum = corr_spec;
+maj_params.insulator_init{1}.hamiltonian = maj_params.insulator_init{1}.orbitals' ...
+    * diag(maj_params.insulator_init{1}.spectrum) * maj_params.insulator_init{1}.orbitals;
+maj_params.insulator_init{1}.hamiltonian = (maj_params.insulator_init{1}.hamiltonian + maj_params.insulator_init{1}.hamiltonian')/2;
+%**********************
 
 %% Time evolve
     reals = maj_params.reals;
@@ -45,6 +54,10 @@ test_symmetries(state_plus, maj_params.num_insulators);
     hamiltonians = maj_params.hamiltonians;
     ins_init = maj_params.insulator_init;
     spectra = maj_params.spectra;
+    
+    %**********DEBUG*******
+    DEBUG_deterministic = false;
+    %**********************
 
     parfor (dis_index = 1:reals,num_cores)
     %*****DEBUG_MODE***********
@@ -56,7 +69,7 @@ test_symmetries(state_plus, maj_params.num_insulators);
         for i = 1:num_ins
             
             tevol_tmp = TimeEvolution_Noise(timestep,num_steps,max_exp,...
-            hamiltonians{i},spectra{i},false,ins_init{i}.hamiltonian,true);
+            hamiltonians{i},spectra{i},maj_params.rand_phase,ins_init{i}.hamiltonian,true,maj_params.adiabatic_rate,DEBUG_deterministic);
                 tevol = tevol_tmp.allocate_phases(full_times);
             
             
@@ -81,6 +94,20 @@ test_symmetries(state_plus, maj_params.num_insulators);
                 final_state_minus_rs{dis_index,i}(:,:,t_index) = (final_state_minus_real);
                 final_state_plus_rs{dis_index,i}(:,:,t_index) = (final_state_plus_real);
                
+            end
+            
+            if DEBUG_deterministic
+                stat_ham = tevol.static_ham;
+                for k = 1:tevol.num_channels
+                    stat_ham = stat_ham + imag(tevol.fourier_amplitudes(k,1))*(tevol.static_evec * tevol.hams{k} * tevol.static_evec');
+                end
+                time = double(num_steps) * tevol.timestep;
+                unit = expm(-1i*stat_ham*time);
+                exact = unit * state_minus{i} * unit';
+                rk = tevol.static_evec * final_state_minus_real * tevol.static_evec';
+                %ph = tevol.calculate_static_phases(time);
+                
+                display(sum(sum(abs( (exact) - rk))));
             end
             
             es = eig(final_state_minus_real);

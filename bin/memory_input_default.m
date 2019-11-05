@@ -1,14 +1,14 @@
 maj_params = MajoranaMemory_Params();
 
-maj_params.timestep = 0.01;
-maj_params.num_steps = 60000;
-maj_params.steps_per_measure = 200;
+maj_params.timestep = 0.008;
+maj_params.num_steps = 150000;
+maj_params.steps_per_measure = 1000;
 
 maj_params.max_exp = 2;
 
-maj_params.reals = 10;
+maj_params.reals = 30;
 
-maj_params.run_parallel = false;
+maj_params.run_parallel = true;
 
 system_params = struct();
 

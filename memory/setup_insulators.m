@@ -16,7 +16,10 @@ alpha = maj_params.system_params.alpha;
 sites = maj_params.system_params.sites;
 mu_patch_size = maj_params.system_params.mu_patch_size;
 
-    ins_init{1} = TopologicalInsulator_DIII(t,mu_init,del_1,del_2,alpha,sites*4,true);
+ins_init{1} = TopologicalInsulator_DIII(t,mu_init,del_1,del_2,alpha,sites*4,true);
+
+
+
 if maj_params.num_insulators >= 2
     ins_init{2} = TopologicalInsulator_DoubleKitaev(t,mu_init,del_1,sites*4,true);
 end

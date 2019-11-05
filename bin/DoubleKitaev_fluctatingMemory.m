@@ -17,13 +17,13 @@ addpath(fullfile(pwd,'..','TE'));
 addpath(fullfile(pwd,'..','memory'));
 
 %TCM Computer
-%file_directory = fullfile('/','rscratch','mm2025','data','majorana');
+file_directory = fullfile('/','rscratch','mm2025','data','majorana');
 %Local
-file_directory = '.';
+%file_directory = '.';
 
 filename = fullfile(file_directory,'majorana_memory_out.mat');
 
-detailed_save = false;
+detailed_save = true;
 
 VARY_AMPLITUDE = true;
 TESTING = false;
@@ -38,6 +38,14 @@ end
 RUN = false;
 SAVE = true;
 %*********************************************
+
+USING_GUI = usejava('desktop') && usejava('awt');
+
+if USING_GUI
+    display('Running in GUI mode');
+else
+    display('Running in text mode');
+end
 
 if RUN
     
@@ -54,8 +62,10 @@ if RUN
         end
     end
     
-    profile off;
-    profile on;
+    if USING_GUI
+        profile off;
+        profile on;
+    end
     
     if VARY_AMPLITUDE
         params_in = cell(size(amplitudes,1),1);
@@ -72,13 +82,17 @@ if RUN
 
     outputs = MajoranaMemory_Params.run_jobs(params_in,detailed_save);
     
-    profile off;
-    profile viewer;
+    
 end
 %% Saving data
 
 if RUN && SAVE
     save(filename,'outputs');
+end
+
+if RUN && USING_GUI
+    profile off;
+    profile viewer;
 end
 
 %% Plotting
